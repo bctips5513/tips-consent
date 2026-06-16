@@ -67,11 +67,32 @@
   .sign-display img { width: 100%; display: block; }
   .date-log-display { background: var(--paper); border-radius: var(--radius); padding: 12px 14px; font-size: 13px; line-height: 2; color: var(--ink-mid); }
 
-  .loading { text-align: center; padding: 40px; color: var(--ink-light); font-size: 14px; }
-  .empty { text-align: center; padding: 60px 20px; color: var(--ink-light); font-size: 14px; }
+  .print-overlay { position: fixed; inset: 0; background: white; z-index: 200; display: none; flex-direction: column; }
+  .print-overlay.show { display: flex; }
+  .print-toolbar { background: var(--ink); color: white; padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+  .print-toolbar-title { font-size: 15px; font-weight: 600; flex: 1; }
+  .print-toolbar-btn { padding: 9px 16px; border: none; border-radius: var(--radius); font-size: 14px; font-family: inherit; cursor: pointer; }
+  .print-toolbar-btn.primary { background: var(--accent); color: white; }
+  .print-toolbar-btn.secondary { background: #444; color: white; }
+  .print-preview-body { flex: 1; overflow-y: auto; padding: 0; }
+  @media print {
+    .print-toolbar { display: none !important; }
+    .print-overlay { position: static; }
+    body > *:not(.print-overlay) { display: none !important; }
+  }
 </style>
 </head>
 <body>
+
+<!-- 印刷プレビュー -->
+<div class="print-overlay" id="printOverlay">
+  <div class="print-toolbar">
+    <span class="print-toolbar-title">印刷プレビュー</span>
+    <button class="print-toolbar-btn primary" onclick="doPrint()">🖨 印刷 / PDF保存</button>
+    <button class="print-toolbar-btn secondary" onclick="closePrintPreview()">← 戻る</button>
+  </div>
+  <div class="print-preview-body" id="printPreviewBody"></div>
+</div>
 
 <div class="pw-screen" id="pwScreen">
   <div class="pw-box">
@@ -300,7 +321,7 @@ function buildKarte(d) {
   `;
 }
 
-// ===== PDF（印刷ダイアログ） =====
+// ===== 印刷プレビュー =====
 function downloadPDF() {
   if (!currentRecord) return;
   const d = currentRecord;
@@ -319,71 +340,75 @@ function downloadPDF() {
     });
   }
 
-  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
-  <title>カルテ - ${d.name||''}</title>
-  <style>
-    @media print { body { margin: 0; } }
-    body { font-family: -apple-system,'Hiragino Sans','Yu Gothic',sans-serif; font-size: 11px; color: #1a1a18; margin: 0; padding: 0; }
-    .header { background: #1a1a18; color: white; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; }
-    .header h1 { font-size: 13px; font-weight: 600; margin: 0; }
-    .header .date { font-size: 10px; color: #aaa; }
-    .name-block { padding: 10px 14px 6px; border-bottom: 1px solid #d4d0c8; }
-    .name-block .name { font-size: 17px; font-weight: 700; }
-    .name-block .kana { font-size: 11px; color: #8a8a84; margin-left: 8px; }
-    .content { padding: 8px 14px; }
-    .sec { margin-bottom: 10px; }
-    .sec-title { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; color: #8a8a84; border-bottom: 1px solid #d4d0c8; padding-bottom: 2px; margin-bottom: 5px; text-transform: uppercase; }
-    table { width: 100%; border-collapse: collapse; }
-    td { padding: 2px 4px; vertical-align: top; line-height: 1.5; }
-    td.pl { color: #8a8a84; font-size: 9px; width: 30%; white-space: nowrap; padding-top: 3px; }
-    .sign-img { max-width: 200px; border: 1px solid #d4d0c8; display: block; }
-  </style>
-  </head><body>
-  <div class="header"><h1>tips　施術カルテ・同意書</h1><span class="date">${new Date().toLocaleDateString('ja-JP')}</span></div>
-  <div class="name-block"><span class="name">${d.name||'−'}</span><span class="kana">${d.name_kana||''}</span></div>
-  <div class="content">
-    <div class="sec"><div class="sec-title">基本情報</div>
-      <table>
-        <tr><td class="pl">生年月日</td><td>${d.birthday||'−'}</td><td class="pl">性別</td><td>${m('gender',d.gender)}</td></tr>
-        <tr><td class="pl">電話番号</td><td>${d.phone||'−'}</td><td class="pl">郵便番号</td><td>${d.postal||'−'}</td></tr>
-        <tr><td class="pl">住所</td><td colspan="3">${(d.address1||'')+' '+(d.address2||'')}</td></tr>
-      </table>
-    </div>
-    <div class="sec"><div class="sec-title">健康状態</div>
-      <table>
-        <tr><td class="pl">妊娠・授乳</td><td>${m('pregnancy',d.pregnancy)}</td><td class="pl">アレルギー</td><td>${m('allergy',d.allergy)}</td></tr>
-        ${d.allergy==='yes'?`<tr><td class="pl">アレルギー詳細</td><td colspan="3">${d.allergy_detail_text||'−'}</td></tr>`:''}
-        <tr><td class="pl">頭皮・肌の症状</td><td>${m('skin',d.skin_condition)}</td><td class="pl">カラー異常反応</td><td>${m('reaction',d.color_reaction)}</td></tr>
-        ${d.skin_condition==='yes'?`<tr><td class="pl">症状詳細</td><td colspan="3">${d.skin_detail_text||'−'}</td></tr>`:''}
-        ${d.color_reaction==='yes'?`<tr><td class="pl">反応の詳細</td><td colspan="3">${d.color_reaction_detail_text||'−'}</td></tr>`:''}
-        <tr><td class="pl">服薬</td><td>${m('medication',d.medication)}</td><td class="pl">頭皮タイプ</td><td>${m('scalp',d.scalp_type)}</td></tr>
-        ${d.medication==='yes'?`<tr><td class="pl">薬の種類</td><td colspan="3">${d.medication_detail_text||'−'}</td></tr>`:''}
-        ${d.health_other?`<tr><td class="pl">その他</td><td colspan="3">${d.health_other}</td></tr>`:''}
-      </table>
-    </div>
-    <div class="sec"><div class="sec-title">施術履歴</div>
-      <table>
-        <tr><td class="pl">カラー経験</td><td>${m('color',d.hist_color)}</td><td class="pl">白髪の割合</td><td>${m('gray',d.gray_ratio)}</td></tr>
-        ${d.hist_color!=='no'?`<tr><td class="pl">直近のカラー</td><td>${m('colorDate',d.hist_color_date)}</td><td class="pl">カラー頻度</td><td>${m('colorFreq',d.hist_color_freq)}</td></tr>`:''}
-        <tr><td class="pl">ブリーチ経験</td><td>${m('bleach',d.hist_bleach)}</td><td class="pl">パーマ経験</td><td>${m('perm',d.hist_perm)}</td></tr>
-        ${d.hist_bleach!=='no'?`<tr><td class="pl">ブリーチ回数</td><td>${m('bleachCount',d.hist_bleach_count)}</td><td class="pl">最後のブリーチ</td><td>${bleachLast}</td></tr>`:''}
-        ${d.hist_perm==='yes'?`<tr><td class="pl">最後のパーマ</td><td>${m('permDate',d.hist_perm_date)}</td><td class="pl"></td><td></td></tr>`:''}
-        <tr><td class="pl">縮毛矯正経験</td><td>${m('perm',d.hist_straight)}</td><td class="pl">写真掲載同意</td><td>${d.photo_consent==='yes'?'同意あり':'同意なし'}</td></tr>
-        ${d.hist_straight==='yes'?`<tr><td class="pl">最後の縮毛矯正</td><td>${m('permDate',d.hist_straight_date)}</td><td class="pl"></td><td></td></tr>`:''}
-        ${d.history_other?`<tr><td class="pl">その他履歴</td><td colspan="3">${d.history_other}</td></tr>`:''}
-      </table>
-    </div>
-    <div class="sec"><div class="sec-title">入力履歴</div>
-      <table>${dateLogHtml||'<tr><td>−</td></tr>'}</table>
-    </div>
-    ${d.signature?`<div class="sec"><div class="sec-title">署名（最新）</div><img class="sign-img" src="${d.signature}" alt="署名"></div>`:''}
-  </div>
-  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
-  </body></html>`;
+  const printHTML = `
+    <style>
+      body { font-family: -apple-system,'Hiragino Sans','Yu Gothic',sans-serif; font-size: 11px; color: #1a1a18; margin: 0; padding: 0; }
+      .header { background: #1a1a18; color: white; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; }
+      .header h1 { font-size: 13px; font-weight: 600; margin: 0; }
+      .header .date { font-size: 10px; color: #aaa; }
+      .name-block { padding: 10px 14px 6px; border-bottom: 1px solid #d4d0c8; }
+      .name-block .name { font-size: 17px; font-weight: 700; }
+      .name-block .kana { font-size: 11px; color: #8a8a84; margin-left: 8px; }
+      .content { padding: 8px 14px; }
+      .sec { margin-bottom: 10px; }
+      .sec-title { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; color: #8a8a84; border-bottom: 1px solid #d4d0c8; padding-bottom: 2px; margin-bottom: 5px; text-transform: uppercase; }
+      table { width: 100%; border-collapse: collapse; }
+      td { padding: 2px 4px; vertical-align: top; line-height: 1.5; }
+      td.pl { color: #8a8a84; font-size: 9px; width: 30%; white-space: nowrap; padding-top: 3px; }
+      .sign-img { max-width: 200px; border: 1px solid #d4d0c8; display: block; }
+    </style>
+    <div class="header"><h1>tips　施術カルテ・同意書</h1><span class="date">${new Date().toLocaleDateString('ja-JP')}</span></div>
+    <div class="name-block"><span class="name">${d.name||'−'}</span><span class="kana">${d.name_kana||''}</span></div>
+    <div class="content">
+      <div class="sec"><div class="sec-title">基本情報</div>
+        <table>
+          <tr><td class="pl">生年月日</td><td>${d.birthday||'−'}</td><td class="pl">性別</td><td>${m('gender',d.gender)}</td></tr>
+          <tr><td class="pl">電話番号</td><td>${d.phone||'−'}</td><td class="pl">郵便番号</td><td>${d.postal||'−'}</td></tr>
+          <tr><td class="pl">住所</td><td colspan="3">${(d.address1||'')+' '+(d.address2||'')}</td></tr>
+        </table>
+      </div>
+      <div class="sec"><div class="sec-title">健康状態</div>
+        <table>
+          <tr><td class="pl">妊娠・授乳</td><td>${m('pregnancy',d.pregnancy)}</td><td class="pl">アレルギー</td><td>${m('allergy',d.allergy)}</td></tr>
+          ${d.allergy==='yes'?`<tr><td class="pl">アレルギー詳細</td><td colspan="3">${d.allergy_detail_text||'−'}</td></tr>`:''}
+          <tr><td class="pl">頭皮・肌の症状</td><td>${m('skin',d.skin_condition)}</td><td class="pl">カラー異常反応</td><td>${m('reaction',d.color_reaction)}</td></tr>
+          ${d.skin_condition==='yes'?`<tr><td class="pl">症状詳細</td><td colspan="3">${d.skin_detail_text||'−'}</td></tr>`:''}
+          ${d.color_reaction==='yes'?`<tr><td class="pl">反応の詳細</td><td colspan="3">${d.color_reaction_detail_text||'−'}</td></tr>`:''}
+          <tr><td class="pl">服薬</td><td>${m('medication',d.medication)}</td><td class="pl">頭皮タイプ</td><td>${m('scalp',d.scalp_type)}</td></tr>
+          ${d.medication==='yes'?`<tr><td class="pl">薬の種類</td><td colspan="3">${d.medication_detail_text||'−'}</td></tr>`:''}
+          ${d.health_other?`<tr><td class="pl">その他</td><td colspan="3">${d.health_other}</td></tr>`:''}
+        </table>
+      </div>
+      <div class="sec"><div class="sec-title">施術履歴</div>
+        <table>
+          <tr><td class="pl">カラー経験</td><td>${m('color',d.hist_color)}</td><td class="pl">白髪の割合</td><td>${m('gray',d.gray_ratio)}</td></tr>
+          ${d.hist_color!=='no'?`<tr><td class="pl">直近のカラー</td><td>${m('colorDate',d.hist_color_date)}</td><td class="pl">カラー頻度</td><td>${m('colorFreq',d.hist_color_freq)}</td></tr>`:''}
+          <tr><td class="pl">ブリーチ経験</td><td>${m('bleach',d.hist_bleach)}</td><td class="pl">パーマ経験</td><td>${m('perm',d.hist_perm)}</td></tr>
+          ${d.hist_bleach!=='no'?`<tr><td class="pl">ブリーチ回数</td><td>${m('bleachCount',d.hist_bleach_count)}</td><td class="pl">最後のブリーチ</td><td>${bleachLast}</td></tr>`:''}
+          ${d.hist_perm==='yes'?`<tr><td class="pl">最後のパーマ</td><td colspan="3">${m('permDate',d.hist_perm_date)}</td></tr>`:''}
+          <tr><td class="pl">縮毛矯正経験</td><td>${m('perm',d.hist_straight)}</td><td class="pl">写真掲載同意</td><td>${d.photo_consent==='yes'?'同意あり':'同意なし'}</td></tr>
+          ${d.hist_straight==='yes'?`<tr><td class="pl">最後の縮毛矯正</td><td colspan="3">${m('permDate',d.hist_straight_date)}</td></tr>`:''}
+          ${d.history_other?`<tr><td class="pl">その他履歴</td><td colspan="3">${d.history_other}</td></tr>`:''}
+        </table>
+      </div>
+      <div class="sec"><div class="sec-title">入力履歴</div>
+        <table>${dateLogHtml||'<tr><td>−</td></tr>'}</table>
+      </div>
+      ${d.signature?`<div class="sec"><div class="sec-title">署名（最新）</div><img class="sign-img" src="${d.signature}" alt="署名"></div>`:''}
+    </div>`;
 
-  const win = window.open('', '_blank');
-  win.document.write(html);
-  win.document.close();
+  document.getElementById('printPreviewBody').innerHTML = printHTML;
+  document.getElementById('modalOverlay').classList.remove('show');
+  document.getElementById('printOverlay').classList.add('show');
+}
+
+function closePrintPreview() {
+  document.getElementById('printOverlay').classList.remove('show');
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function doPrint() {
+  window.print();
 }
 
 window.addEventListener('load',()=>{
