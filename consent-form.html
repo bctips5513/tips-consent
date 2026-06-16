@@ -1067,14 +1067,19 @@ async function submitForm(){
 
   showLoading('データを保存しています…');
   try {
-    await fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'save',payload})});
+    await fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'save',payload}),mode:'no-cors'});
+  } catch(e) {
+    // 通信自体が失敗した場合のみエラー
     hideLoading();
-    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-    document.getElementById('complete').classList.add('active');
-    document.getElementById('navBar').style.display='none';
-    document.getElementById('progressBar').style.display='none';
-    window.scrollTo({top:0,behavior:'smooth'});
-  } catch(e){hideLoading();alert('保存中にエラーが発生しました。Wi-Fiの接続をご確認ください。');}
+    alert('保存中にエラーが発生しました。Wi-Fiの接続をご確認ください。');
+    return;
+  }
+  hideLoading();
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('complete').classList.add('active');
+  document.getElementById('navBar').style.display='none';
+  document.getElementById('progressBar').style.display='none';
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 // ===== ユーティリティ =====
