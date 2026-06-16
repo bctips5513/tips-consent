@@ -95,6 +95,7 @@
   .service-item.checked { border-color: var(--accent); background: var(--accent-light); }
   .service-item .svc-name { font-weight: 500; font-size: var(--fs-base); }
   .service-item .svc-note { font-size: var(--fs-xs); color: var(--ink-light); margin-top: 3px; }
+  .svc-consented { font-size: var(--fs-xs); color: var(--accent); font-weight: 500; margin-top: 4px; }
 
   .alert { background: var(--warn-light); border-left: 3px solid var(--warn); padding: 13px 15px; border-radius: 0 var(--radius) var(--radius) 0; font-size: var(--fs-sm); color: #5c2a1e; margin-bottom: 22px; line-height: 1.7; }
   .info-box { background: var(--accent-light); border-left: 3px solid var(--accent); padding: 13px 15px; border-radius: 0 var(--radius) var(--radius) 0; font-size: var(--fs-sm); color: #1a3d2e; margin-bottom: 22px; line-height: 1.7; }
@@ -794,11 +795,12 @@ async function searchCustomer() {
       document.getElementById('searchScreen').style.display = 'none';
       document.getElementById('progressBar').style.display = 'flex';
       document.getElementById('navBar').style.display = 'flex';
-      document.getElementById('step3Label').textContent = 'Step 1 / 2';
-      document.getElementById('step4Label').textContent = 'Step 2 / 2';
-      document.querySelectorAll('.progress-step').forEach((s,i) => s.style.display = i < 2 ? 'block' : 'none');
+      // リピーターも全ステップ表示
+      document.querySelectorAll('.progress-step').forEach(s => s.style.display = 'block');
+      document.getElementById('step3Label').textContent = 'Step 4 / 5';
+      document.getElementById('step4Label').textContent = 'Step 5 / 5';
       fillExistingData();
-      currentStep = 3; showStep(3);
+      currentStep = 0; showStep(0);
     } else {
       alert('登録が見つかりませんでした。\n電話番号をご確認いただくか、「はじめてのご来店」からご入力ください。');
     }
@@ -832,10 +834,39 @@ function fillExistingData() {
   if (d.hist_straight==='yes'){toggleConditional('hist_straight_detail',true);setSelectVal('hist_straight_date',d.hist_straight_date);}
   setVal('history_other',d.history_other);
   ['banner0','banner1','banner2'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('show');});
+
+  // 同意済みメニューのバッジ表示
+  if (d.today_services || d.additional_dates) {
+    // 全履歴からサービスを収集
+    const allConsented = new Set();
+    if (d.today_services) d.today_services.split(/[,・]/).forEach(s => allConsented.add(s.trim()));
+    if (d.additional_dates) {
+      d.additional_dates.split('|').forEach(entry => {
+        const m = entry.match(/追加入力（([^）]+)）/);
+        if (m) m[1].split('・').forEach(s => allConsented.add(s.trim()));
+      });
+    }
+    // サービス名→value対応
+    const svcMap = {'カット':'cut','カラー':'color','ブリーチ':'bleach','パーマ':'perm','縮毛矯正':'straight','トリートメント':'treatment'};
+    const consentedValues = new Set([...allConsented].map(n => svcMap[n]).filter(Boolean));
+    // バッジを追加
+    document.querySelectorAll('.service-item').forEach(item => {
+      const cb = item.querySelector('input[type="checkbox"]');
+      if (cb && consentedValues.has(cb.value)) {
+        let badge = item.querySelector('.svc-consented');
+        if (!badge) {
+          badge = document.createElement('div');
+          badge.className = 'svc-consented';
+          badge.textContent = '✓ 同意済み';
+          item.querySelector('div').appendChild(badge);
+        }
+      }
+    });
+  }
 }
 
 // ===== ナビ =====
-const STEPS_NEW=[0,1,2,3,4], STEPS_REPEAT=[3,4];
+const STEPS_NEW=[0,1,2,3,4], STEPS_REPEAT=[0,1,2,3,4];
 function getStepList(){return isRepeat?STEPS_REPEAT:STEPS_NEW;}
 
 function showStep(n) {
