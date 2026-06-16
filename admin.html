@@ -300,107 +300,90 @@ function buildKarte(d) {
   `;
 }
 
-// ===== PDF =====
-async function downloadPDF() {
+// ===== PDF（印刷ダイアログ） =====
+function downloadPDF() {
   if (!currentRecord) return;
   const d = currentRecord;
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-  const margin = 14;
-  const pageW = 210;
-  const cW = pageW - margin * 2;
-  let y = 0;
+  const svcs = (d.today_services||'').split(/[,・]/).map(s => MAPS.svc[s.trim()]||s.trim()).filter(Boolean).join('・');
+  const bleachLast = d.hist_bleach === 'yes_recent' ? m('bleachRecent', d.hist_bleach_last) : m('bleachOld', d.hist_bleach_last);
 
-  pdf.setFillColor(26,26,24);
-  pdf.rect(0,0,210,16,'F');
-  pdf.setTextColor(255,255,255);
-  pdf.setFontSize(11);
-  pdf.text('tips  施術カルテ・同意書', margin, 11);
-  y = 22;
-
-  pdf.setTextColor(26,26,24);
-  pdf.setFontSize(15);
-  pdf.text(d.name||'−', margin, y);
-  y += 5;
-  pdf.setFontSize(9);
-  pdf.setTextColor(120,120,120);
-  pdf.text(d.name_kana||'', margin, y);
-  y += 4;
-  pdf.setDrawColor(212,208,200);
-  pdf.line(margin, y, pageW-margin, y);
-  y += 4;
-  pdf.setTextColor(26,26,24);
-
-  function secTitle(t) {
-    pdf.setFontSize(7); pdf.setFont('helvetica','bold');
-    pdf.setTextColor(138,138,132);
-    pdf.text(t, margin, y); y+=3;
-    pdf.setDrawColor(212,208,200); pdf.line(margin,y,pageW-margin,y); y+=3;
-    pdf.setTextColor(26,26,24); pdf.setFont('helvetica','normal');
-  }
-
-  function cell(label, value, x, w) {
-    pdf.setFontSize(7); pdf.setTextColor(120,120,120);
-    pdf.text(label, x, y);
-    pdf.setFontSize(9); pdf.setTextColor(26,26,24);
-    const lines = pdf.splitTextToSize(value||'−', w-2);
-    pdf.text(lines, x, y+3.5);
-    return lines.length * 3.5 + 5;
-  }
-
-  function two(l1,v1,l2,v2) {
-    const h1=cell(l1,v1,margin,cW/2);
-    const h2=cell(l2,v2,margin+cW/2,cW/2);
-    y+=Math.max(h1,h2);
-  }
-  function one(l,val) { const h=cell(l,val,margin,cW); y+=h; }
-
-  secTitle('基本情報');
-  two('お名前',d.name,'ふりがな',d.name_kana);
-  two('生年月日',d.birthday,'性別',m('gender',d.gender));
-  two('電話番号',d.phone,'郵便番号',d.postal);
-  one('住所',(d.address1||'')+' '+(d.address2||''));
-  y+=1;
-
-  secTitle('健康状態');
-  two('妊娠・授乳',m('pregnancy',d.pregnancy),'アレルギー',m('allergy',d.allergy));
-  if(d.allergy==='yes') one('アレルギー詳細',d.allergy_detail_text);
-  two('頭皮・肌の症状',m('skin',d.skin_condition),'カラー異常反応歴',m('reaction',d.color_reaction));
-  if(d.skin_condition==='yes') one('症状詳細',d.skin_detail_text);
-  two('服薬',m('medication',d.medication),'頭皮タイプ',m('scalp',d.scalp_type));
-  if(d.medication==='yes') one('薬の種類',d.medication_detail_text);
-  if(d.health_other) one('その他',d.health_other);
-  y+=1;
-
-  secTitle('施術履歴');
-  two('カラー経験',m('color',d.hist_color),'白髪の割合',m('gray',d.gray_ratio));
-  if(d.hist_color!=='no') two('直近のカラー',m('colorDate',d.hist_color_date),'カラー頻度',m('colorFreq',d.hist_color_freq));
-  two('ブリーチ経験',m('bleach',d.hist_bleach),'パーマ経験',m('perm',d.hist_perm));
-  if(d.hist_bleach!=='no') two('ブリーチ回数',m('bleachCount',d.hist_bleach_count),'最後のブリーチ',(d.hist_bleach==='yes_recent'?m('bleachRecent',d.hist_bleach_last):m('bleachOld',d.hist_bleach_last)));
-  two('縮毛矯正経験',m('perm',d.hist_straight),'写真掲載同意',d.photo_consent==='yes'?'同意あり':'同意なし');
-  if(d.history_other) one('その他履歴',d.history_other);
-  y+=1;
-
-  secTitle('入力履歴');
-  if(d.first_input_date) one('初回入力日',d.first_input_date);
-  if(d.additional_dates) {
-    d.additional_dates.split('|').forEach(entry=>{
-      const mt=entry.match(/追加入力（([^）]+)）\s*(.+)/);
-      if(mt){
-        const s=mt[1].split(/[,・]/).map(x=>MAPS.svc[x.trim()]||x.trim()).join('・');
-        one('追加入力（'+s+'）',mt[2].trim());
+  let dateLogHtml = '';
+  if (d.first_input_date) dateLogHtml += `<tr><td class="pl">初回入力日</td><td>${d.first_input_date}</td></tr>`;
+  if (d.additional_dates) {
+    d.additional_dates.split('|').forEach(entry => {
+      const mt = entry.match(/追加入力（([^）]+)）\s*(.+)/);
+      if (mt) {
+        const s = mt[1].split(/[,・]/).map(x => MAPS.svc[x.trim()]||x.trim()).join('・');
+        dateLogHtml += `<tr><td class="pl">追加入力（${s}）</td><td>${mt[2].trim()}</td></tr>`;
       }
     });
   }
-  y+=1;
 
-  if(d.signature && y < 250) {
-    secTitle('署名（最新）');
-    try { pdf.addImage(d.signature,'PNG',margin,y,80,28); y+=32; } catch(e){}
-  }
+  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8">
+  <title>カルテ - ${d.name||''}</title>
+  <style>
+    @media print { body { margin: 0; } }
+    body { font-family: -apple-system,'Hiragino Sans','Yu Gothic',sans-serif; font-size: 11px; color: #1a1a18; margin: 0; padding: 0; }
+    .header { background: #1a1a18; color: white; padding: 8px 14px; display: flex; justify-content: space-between; align-items: center; }
+    .header h1 { font-size: 13px; font-weight: 600; margin: 0; }
+    .header .date { font-size: 10px; color: #aaa; }
+    .name-block { padding: 10px 14px 6px; border-bottom: 1px solid #d4d0c8; }
+    .name-block .name { font-size: 17px; font-weight: 700; }
+    .name-block .kana { font-size: 11px; color: #8a8a84; margin-left: 8px; }
+    .content { padding: 8px 14px; }
+    .sec { margin-bottom: 10px; }
+    .sec-title { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; color: #8a8a84; border-bottom: 1px solid #d4d0c8; padding-bottom: 2px; margin-bottom: 5px; text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; }
+    td { padding: 2px 4px; vertical-align: top; line-height: 1.5; }
+    td.pl { color: #8a8a84; font-size: 9px; width: 30%; white-space: nowrap; padding-top: 3px; }
+    .sign-img { max-width: 200px; border: 1px solid #d4d0c8; display: block; }
+  </style>
+  </head><body>
+  <div class="header"><h1>tips　施術カルテ・同意書</h1><span class="date">${new Date().toLocaleDateString('ja-JP')}</span></div>
+  <div class="name-block"><span class="name">${d.name||'−'}</span><span class="kana">${d.name_kana||''}</span></div>
+  <div class="content">
+    <div class="sec"><div class="sec-title">基本情報</div>
+      <table>
+        <tr><td class="pl">生年月日</td><td>${d.birthday||'−'}</td><td class="pl">性別</td><td>${m('gender',d.gender)}</td></tr>
+        <tr><td class="pl">電話番号</td><td>${d.phone||'−'}</td><td class="pl">郵便番号</td><td>${d.postal||'−'}</td></tr>
+        <tr><td class="pl">住所</td><td colspan="3">${(d.address1||'')+' '+(d.address2||'')}</td></tr>
+      </table>
+    </div>
+    <div class="sec"><div class="sec-title">健康状態</div>
+      <table>
+        <tr><td class="pl">妊娠・授乳</td><td>${m('pregnancy',d.pregnancy)}</td><td class="pl">アレルギー</td><td>${m('allergy',d.allergy)}</td></tr>
+        ${d.allergy==='yes'?`<tr><td class="pl">アレルギー詳細</td><td colspan="3">${d.allergy_detail_text||'−'}</td></tr>`:''}
+        <tr><td class="pl">頭皮・肌の症状</td><td>${m('skin',d.skin_condition)}</td><td class="pl">カラー異常反応</td><td>${m('reaction',d.color_reaction)}</td></tr>
+        ${d.skin_condition==='yes'?`<tr><td class="pl">症状詳細</td><td colspan="3">${d.skin_detail_text||'−'}</td></tr>`:''}
+        ${d.color_reaction==='yes'?`<tr><td class="pl">反応の詳細</td><td colspan="3">${d.color_reaction_detail_text||'−'}</td></tr>`:''}
+        <tr><td class="pl">服薬</td><td>${m('medication',d.medication)}</td><td class="pl">頭皮タイプ</td><td>${m('scalp',d.scalp_type)}</td></tr>
+        ${d.medication==='yes'?`<tr><td class="pl">薬の種類</td><td colspan="3">${d.medication_detail_text||'−'}</td></tr>`:''}
+        ${d.health_other?`<tr><td class="pl">その他</td><td colspan="3">${d.health_other}</td></tr>`:''}
+      </table>
+    </div>
+    <div class="sec"><div class="sec-title">施術履歴</div>
+      <table>
+        <tr><td class="pl">カラー経験</td><td>${m('color',d.hist_color)}</td><td class="pl">白髪の割合</td><td>${m('gray',d.gray_ratio)}</td></tr>
+        ${d.hist_color!=='no'?`<tr><td class="pl">直近のカラー</td><td>${m('colorDate',d.hist_color_date)}</td><td class="pl">カラー頻度</td><td>${m('colorFreq',d.hist_color_freq)}</td></tr>`:''}
+        <tr><td class="pl">ブリーチ経験</td><td>${m('bleach',d.hist_bleach)}</td><td class="pl">パーマ経験</td><td>${m('perm',d.hist_perm)}</td></tr>
+        ${d.hist_bleach!=='no'?`<tr><td class="pl">ブリーチ回数</td><td>${m('bleachCount',d.hist_bleach_count)}</td><td class="pl">最後のブリーチ</td><td>${bleachLast}</td></tr>`:''}
+        ${d.hist_perm==='yes'?`<tr><td class="pl">最後のパーマ</td><td>${m('permDate',d.hist_perm_date)}</td><td class="pl"></td><td></td></tr>`:''}
+        <tr><td class="pl">縮毛矯正経験</td><td>${m('perm',d.hist_straight)}</td><td class="pl">写真掲載同意</td><td>${d.photo_consent==='yes'?'同意あり':'同意なし'}</td></tr>
+        ${d.hist_straight==='yes'?`<tr><td class="pl">最後の縮毛矯正</td><td>${m('permDate',d.hist_straight_date)}</td><td class="pl"></td><td></td></tr>`:''}
+        ${d.history_other?`<tr><td class="pl">その他履歴</td><td colspan="3">${d.history_other}</td></tr>`:''}
+      </table>
+    </div>
+    <div class="sec"><div class="sec-title">入力履歴</div>
+      <table>${dateLogHtml||'<tr><td>−</td></tr>'}</table>
+    </div>
+    ${d.signature?`<div class="sec"><div class="sec-title">署名（最新）</div><img class="sign-img" src="${d.signature}" alt="署名"></div>`:''}
+  </div>
+  <script>window.onload=()=>{window.print();}<\/script>
+  </body></html>`;
 
-  const fname='tips_karte_'+(d.name||'unknown').replace(/\s/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.pdf';
-  pdf.save(fname);
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
 }
 
 window.addEventListener('load',()=>{
