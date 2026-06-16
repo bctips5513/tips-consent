@@ -378,7 +378,7 @@ function downloadPDF() {
     </div>
     ${d.signature?`<div class="sec"><div class="sec-title">署名（最新）</div><img class="sign-img" src="${d.signature}" alt="署名"></div>`:''}
   </div>
-  <script>window.onload=()=>{window.print();}<\/script>
+  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
   </body></html>`;
 
   const win = window.open('', '_blank');
