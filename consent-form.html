@@ -834,35 +834,48 @@ function fillExistingData() {
   if (d.hist_straight==='yes'){toggleConditional('hist_straight_detail',true);setSelectVal('hist_straight_date',d.hist_straight_date);}
   setVal('history_other',d.history_other);
   ['banner0','banner1','banner2'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('show');});
+}
 
-  // 同意済みメニューのバッジ表示
-  if (d.today_services || d.additional_dates) {
-    // 全履歴からサービスを収集
-    const allConsented = new Set();
-    if (d.today_services) d.today_services.split(/[,・]/).forEach(s => allConsented.add(s.trim()));
-    if (d.additional_dates) {
-      d.additional_dates.split('|').forEach(entry => {
-        const m = entry.match(/追加入力（([^）]+)）/);
-        if (m) m[1].split('・').forEach(s => allConsented.add(s.trim()));
-      });
-    }
-    // サービス名→value対応
-    const svcMap = {'カット':'cut','カラー':'color','ブリーチ':'bleach','パーマ':'perm','縮毛矯正':'straight','トリートメント':'treatment'};
-    const consentedValues = new Set([...allConsented].map(n => svcMap[n]).filter(Boolean));
-    // バッジを追加
-    document.querySelectorAll('.service-item').forEach(item => {
-      const cb = item.querySelector('input[type="checkbox"]');
-      if (cb && consentedValues.has(cb.value)) {
-        let badge = item.querySelector('.svc-consented');
-        if (!badge) {
-          badge = document.createElement('div');
-          badge.className = 'svc-consented';
-          badge.textContent = '✓ 同意済み';
-          item.querySelector('div').appendChild(badge);
-        }
-      }
+// ===== 同意済みバッジ表示 =====
+function showConsentedBadges() {
+  if (!existingData) return;
+  const d = existingData;
+  const consentedValues = new Set();
+
+  // today_servicesは英語value（例: cut,perm）または日本語（カット）両対応
+  const svcMapJa = {'カット':'cut','カラー':'color','ブリーチ':'bleach','パーマ':'perm','縮毛矯正':'straight','トリートメント':'treatment'};
+  const allValues = ['cut','color','bleach','perm','straight','treatment'];
+
+  function addServices(str) {
+    if (!str) return;
+    str.split(/[,・]/).forEach(s => {
+      const v = s.trim();
+      if (allValues.includes(v)) consentedValues.add(v);
+      else if (svcMapJa[v]) consentedValues.add(svcMapJa[v]);
     });
   }
+
+  addServices(d.today_services);
+
+  if (d.additional_dates) {
+    d.additional_dates.split('|').forEach(entry => {
+      const m = entry.match(/追加入力（([^）]+)）/);
+      if (m) addServices(m[1]);
+    });
+  }
+
+  document.querySelectorAll('.service-item').forEach(item => {
+    const cb = item.querySelector('input[type="checkbox"]');
+    if (!cb) return;
+    const old = item.querySelector('.svc-consented');
+    if (old) old.remove();
+    if (consentedValues.has(cb.value)) {
+      const badge = document.createElement('div');
+      badge.className = 'svc-consented';
+      badge.textContent = '✓ 同意済み';
+      item.querySelector('div').appendChild(badge);
+    }
+  });
 }
 
 // ===== ナビ =====
@@ -875,6 +888,7 @@ function showStep(n) {
   if (el) el.classList.add('active');
   window.scrollTo({top:0,behavior:'smooth'});
   updateNav(); updateProgress();
+  if (n===3 && isRepeat) showConsentedBadges();
   if (n===4) {
     setTimeout(initCanvas, 50);
     renderDateLog(existingData);
