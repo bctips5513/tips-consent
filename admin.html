@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カルテ管理 | tips</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #1a1a18; --ink-mid: #4a4a46; --ink-light: #8a8a84;
+    --rule: #d4d0c8; --paper: #f8f6f1; --paper-warm: #eeebe3;
+    --accent: #2c5f4a; --accent-light: #e8f0ec;
+    --warn: #8b3a2a; --warn-light: #f5ece9; --radius: 2px;
+  }
+  body { font-family: -apple-system,'Hiragino Sans','Yu Gothic',sans-serif; background: var(--paper); color: var(--ink); font-size: 15px; line-height: 1.7; min-height: 100vh; }
+
+  /* パスワード画面 */
+  .pw-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+  .pw-box { background: white; border: 1px solid var(--rule); border-radius: var(--radius); padding: 36px 28px; width: 100%; max-width: 380px; text-align: center; }
+  .pw-box h1 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .pw-box p { font-size: 13px; color: var(--ink-light); margin-bottom: 24px; }
+  .pw-box input { width: 100%; padding: 12px 14px; border: 1px solid var(--rule); border-radius: var(--radius); font-size: 15px; margin-bottom: 12px; font-family: inherit; outline: none; }
+  .pw-box input:focus { border-color: var(--accent); }
+  .pw-box button { width: 100%; padding: 13px; background: var(--ink); color: white; border: none; border-radius: var(--radius); font-size: 15px; font-family: inherit; cursor: pointer; }
+  .pw-error { color: var(--warn); font-size: 13px; margin-top: 8px; display: none; }
+
+  /* メイン画面 */
+  .main-screen { display: none; }
+
+  header { background: var(--ink); color: white; padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; }
+  header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.05em; }
+  .logout-btn { font-size: 13px; color: #aaa; background: none; border: none; cursor: pointer; font-family: inherit; }
+
+  .toolbar { background: white; border-bottom: 1px solid var(--rule); padding: 14px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .search-input { flex: 1; min-width: 200px; padding: 10px 14px; border: 1px solid var(--rule); border-radius: var(--radius); font-size: 15px; font-family: inherit; outline: none; }
+  .search-input:focus { border-color: var(--accent); }
+  .load-btn { padding: 10px 18px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-size: 14px; font-family: inherit; cursor: pointer; white-space: nowrap; }
+  .record-count { font-size: 13px; color: var(--ink-light); }
+
+  /* リスト */
+  .customer-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .customer-card { background: white; border: 1px solid var(--rule); border-radius: var(--radius); padding: 16px 18px; cursor: pointer; transition: border-color 0.15s; }
+  .customer-card:hover { border-color: var(--accent); }
+  .customer-card .card-name { font-size: 17px; font-weight: 600; margin-bottom: 3px; }
+  .customer-card .card-meta { font-size: 13px; color: var(--ink-light); display: flex; gap: 16px; flex-wrap: wrap; }
+
+  /* モーダル */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 20px; z-index: 100; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: white; border-radius: var(--radius); width: 100%; max-width: 680px; margin: auto; overflow: hidden; }
+  .modal-header { background: var(--ink); color: white; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .modal-header h2 { font-size: 18px; font-weight: 600; }
+  .modal-close { background: none; border: none; color: white; font-size: 22px; cursor: pointer; line-height: 1; }
+  .modal-actions { padding: 14px 20px; background: var(--paper-warm); border-bottom: 1px solid var(--rule); display: flex; gap: 10px; }
+  .action-btn { padding: 10px 16px; border: none; border-radius: var(--radius); font-size: 14px; font-family: inherit; cursor: pointer; }
+  .action-btn.primary { background: var(--accent); color: white; }
+  .action-btn.secondary { background: white; color: var(--ink); border: 1px solid var(--rule); }
+  .modal-body { padding: 20px; }
+
+  /* カルテ詳細 */
+  .karte-section { margin-bottom: 22px; }
+  .karte-section-title { font-size: 12px; font-weight: 700; letter-spacing: 0.1em; color: var(--ink-light); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--rule); text-transform: uppercase; }
+  .karte-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .karte-item { background: var(--paper); border-radius: var(--radius); padding: 10px 12px; }
+  .karte-item .ki-label { font-size: 11px; color: var(--ink-light); margin-bottom: 3px; }
+  .karte-item .ki-value { font-size: 14px; color: var(--ink); font-weight: 500; }
+  .karte-item.full { grid-column: 1 / -1; }
+  .karte-item .ki-value.empty { color: var(--ink-light); font-weight: 400; }
+
+  /* 署名 */
+  .sign-display { border: 1px solid var(--rule); border-radius: var(--radius); background: white; overflow: hidden; }
+  .sign-display img { width: 100%; display: block; }
+
+  /* 日付ログ */
+  .date-log-display { background: var(--paper); border-radius: var(--radius); padding: 12px 14px; font-size: 13px; line-height: 2; color: var(--ink-mid); }
+
+  /* ローディング */
+  .loading { text-align: center; padding: 40px; color: var(--ink-light); font-size: 14px; }
+  .empty { text-align: center; padding: 60px 20px; color: var(--ink-light); font-size: 14px; }
+
+  /* PDF用（非表示） */
+  #pdfContent { display: none; }
+</style>
+</head>
+<body>
+
+<!-- パスワード画面 -->
+<div class="pw-screen" id="pwScreen">
+  <div class="pw-box">
+    <h1>tips 管理ツール</h1>
+    <p>パスワードを入力してください</p>
+    <input type="password" id="pwInput" placeholder="パスワード" onkeydown="if(event.key==='Enter')checkPw()">
+    <button onclick="checkPw()">ログイン</button>
+    <p class="pw-error" id="pwError">パスワードが違います</p>
+  </div>
+</div>
+
+<!-- メイン画面 -->
+<div class="main-screen" id="mainScreen">
+  <header>
+    <h1>カルテ管理</h1>
+    <button class="logout-btn" onclick="logout()">ログアウト</button>
+  </header>
+
+  <div class="toolbar">
+    <input type="text" class="search-input" id="searchInput" placeholder="名前または電話番号で検索" oninput="filterList()">
+    <button class="load-btn" onclick="loadData()">データを読み込む</button>
+    <span class="record-count" id="recordCount"></span>
+  </div>
+
+  <div class="customer-list" id="customerList">
+    <div class="empty">「データを読み込む」を押してください</div>
+  </div>
+</div>
+
+<!-- モーダル -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <h2 id="modalName">カルテ詳細</h2>
+      <button class="modal-close" onclick="closeModalDirect()">×</button>
+    </div>
+    <div class="modal-actions">
+      <button class="action-btn primary" onclick="downloadPDF()">📄 PDFをダウンロード</button>
+      <button class="action-btn secondary" onclick="closeModalDirect()">閉じる</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwTwq-5z-g_fA3v_v2bQBOlQAPoa560tmJxo1Tccm88t85aew1VcdZPY8OmP9o0L7L4/exec';
+const PASSWORD = 'tips2024'; // ← パスワードはここを変更
+
+let allData = [];
+let currentRecord = null;
+
+// ===== パスワード =====
+function checkPw() {
+  const pw = document.getElementById('pwInput').value;
+  if (pw === PASSWORD) {
+    document.getElementById('pwScreen').style.display = 'none';
+    document.getElementById('mainScreen').style.display = 'block';
+    sessionStorage.setItem('tips_admin', '1');
+  } else {
+    document.getElementById('pwError').style.display = 'block';
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('tips_admin');
+  document.getElementById('mainScreen').style.display = 'none';
+  document.getElementById('pwScreen').style.display = 'flex';
+  document.getElementById('pwInput').value = '';
+}
+
+// ===== データ読み込み =====
+async function loadData() {
+  const list = document.getElementById('customerList');
+  list.innerHTML = '<div class="loading">読み込み中…</div>';
+  try {
+    const res = await fetch(GAS_URL + '?action=all');
+    const json = await res.json();
+    if (json.status === 'ok') {
+      allData = json.data;
+      renderList(allData);
+    } else {
+      list.innerHTML = '<div class="empty">データの取得に失敗しました</div>';
+    }
+  } catch(e) {
+    list.innerHTML = '<div class="empty">通信エラーが発生しました</div>';
+  }
+}
+
+function filterList() {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  if (!q) { renderList(allData); return; }
+  const filtered = allData.filter(d => {
+    const name = (d.name || '').toLowerCase();
+    const kana = (d.name_kana || '').toLowerCase();
+    const phone = (d.phone || '').replace(/[^0-9]/g,'');
+    return name.includes(q) || kana.includes(q) || phone.includes(q.replace(/[^0-9]/g,''));
+  });
+  renderList(filtered);
+}
+
+function renderList(data) {
+  const list = document.getElementById('customerList');
+  document.getElementById('recordCount').textContent = `${data.length}件`;
+  if (data.length === 0) { list.innerHTML = '<div class="empty">該当するデータがありません</div>'; return; }
+  list.innerHTML = data.map((d, i) => `
+    <div class="customer-card" onclick="openModal(${i})">
+      <div class="card-name">${d.name || '−'} <span style="font-weight:400;font-size:14px;color:var(--ink-light)">${d.name_kana || ''}</span></div>
+      <div class="card-meta">
+        <span>📞 ${d.phone || '−'}</span>
+        <span>🗓 ${d.first_input_date || d.updated_at || '−'}</span>
+        <span>✂️ ${d.today_services || '−'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===== モーダル =====
+function openModal(idx) {
+  const d = allData[idx];
+  currentRecord = d;
+  document.getElementById('modalName').textContent = (d.name || '−') + ' さん';
+  document.getElementById('modalBody').innerHTML = buildKarte(d);
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modalOverlay').classList.remove('show');
+  currentRecord = null;
+}
+
+function val(v) {
+  if (!v || v === 'undefined' || v === 'null' || v.trim() === '') return '<span class="ki-value empty">−</span>';
+  return `<span class="ki-value">${v}</span>`;
+}
+
+const genderMap = {female:'女性', male:'男性', other:'その他', no_answer:'回答しない'};
+const pregnancyMap = {no:'いいえ', pregnant:'妊娠中', nursing:'授乳中'};
+const scalpMap = {normal:'普通', dry:'乾燥しやすい', oily:'脂っぽい', sensitive:'敏感'};
+const colorMap = {no:'なし', salon:'サロンで', home:'自宅で', both:'両方'};
+const grayMap = {none:'ほぼなし', partial:'部分的', half:'半分程度', most:'多め'};
+const bleachMap = {no:'なし', yes_recent:'あり（1年以内）', yes_old:'あり（1年以上前）'};
+const permMap = {no:'なし', yes:'あり'};
+const skinMap = {no:'とくになし', yes:'あり'};
+const allergyMap = {no:'とくになし', yes:'あり'};
+const reactionMap = {no:'ない', yes:'ある', unknown:'わからない'};
+const medicationMap = {no:'なし', yes:'あり'};
+const colorDateMap = {'1month':'1ヶ月以内','2month':'約2ヶ月前','3month':'約3ヶ月前','6month':'約6ヶ月前','1year':'約1年前','over1year':'1年以上前'};
+const colorFreqMap = {'1month':'1ヶ月に1回','2month':'2ヶ月に1回','3month':'3ヶ月に1回','halfyear':'半年に1回','irregular':'不定期'};
+const bleachCountMap = {'1':'1回','2-3':'2〜3回','4-5':'4〜5回','over6':'6回以上','unknown':'わからない'};
+const bleachLastRecentMap = {'1month':'1ヶ月以内','3month':'3ヶ月以内','6month':'半年以内','1year':'約1年以内'};
+const bleachLastOldMap = {'over1year':'1年以上前','over3year':'3年以上前','unknown':'覚えていない'};
+const permDateMap = {'3month':'3ヶ月以内','6month':'約6ヶ月前','1year':'約1年前','over1year':'1年以上前'};
+const svcNameMap = {cut:'カット',color:'カラー',bleach:'ブリーチ',perm:'パーマ',straight:'縮毛矯正',treatment:'トリートメント'};
+
+function mapVal(map, key) { return map[key] || key || '−'; }
+
+function buildKarte(d) {
+  const services = (d.today_services || '').split(/[,・]/).map(s => svcNameMap[s.trim()] || s.trim()).filter(Boolean).join('・');
+
+  // 日付ログ
+  let dateLogHtml = '';
+  if (d.first_input_date) {
+    dateLogHtml = `<div style="margin-bottom:3px"><span style="font-size:11px;color:var(--ink-light)">初回入力日　</span>${d.first_input_date}</div>`;
+  }
+  if (d.additional_dates) {
+    d.additional_dates.split('|').forEach(entry => {
+      if (entry.trim()) {
+        const m = entry.match(/追加入力（([^）]+)）\s*(.+)/);
+        if (m) {
+          const svcs = m[1].split(/[,・]/).map(s => svcNameMap[s.trim()] || s.trim()).join('・');
+          dateLogHtml += `<div style="margin-bottom:3px"><span style="font-size:11px;color:var(--ink-light)">追加入力（${svcs}）　</span>${m[2].trim()}</div>`;
+        }
+      }
+    });
+  }
+
+  const bleachLast = d.hist_bleach === 'yes_recent'
+    ? mapVal(bleachLastRecentMap, d.hist_bleach_last)
+    : mapVal(bleachLastOldMap, d.hist_bleach_last);
+
+  return `
+    <div class="karte-section">
+      <div class="karte-section-title">基本情報</div>
+      <div class="karte-grid">
+        <div class="karte-item"><div class="ki-label">お名前</div>${val(d.name)}</div>
+        <div class="karte-item"><div class="ki-label">ふりがな</div>${val(d.name_kana)}</div>
+        <div class="karte-item"><div class="ki-label">生年月日</div>${val(d.birthday)}</div>
+        <div class="karte-item"><div class="ki-label">性別</div>${val(mapVal(genderMap, d.gender))}</div>
+        <div class="karte-item"><div class="ki-label">電話番号</div>${val(d.phone)}</div>
+        <div class="karte-item"><div class="ki-label">郵便番号</div>${val(d.postal)}</div>
+        <div class="karte-item full"><div class="ki-label">住所</div>${val((d.address1||'') + ' ' + (d.address2||''))}</div>
+      </div>
+    </div>
+
+    <div class="karte-section">
+      <div class="karte-section-title">健康状態</div>
+      <div class="karte-grid">
+        <div class="karte-item"><div class="ki-label">妊娠・授乳</div>${val(mapVal(pregnancyMap, d.pregnancy))}</div>
+        <div class="karte-item"><div class="ki-label">頭皮・肌の症状</div>${val(mapVal(skinMap, d.skin_condition))}</div>
+        ${d.skin_condition==='yes'?`<div class="karte-item full"><div class="ki-label">症状の詳細</div>${val(d.skin_detail_text)}</div>`:''}
+        <div class="karte-item"><div class="ki-label">アレルギー</div>${val(mapVal(allergyMap, d.allergy))}</div>
+        ${d.allergy==='yes'?`<div class="karte-item full"><div class="ki-label">アレルギー詳細</div>${val(d.allergy_detail_text)}</div>`:''}
+        <div class="karte-item"><div class="ki-label">カラー異常反応歴</div>${val(mapVal(reactionMap, d.color_reaction))}</div>
+        ${d.color_reaction==='yes'?`<div class="karte-item full"><div class="ki-label">反応の詳細</div>${val(d.color_reaction_detail_text)}</div>`:''}
+        <div class="karte-item"><div class="ki-label">服薬</div>${val(mapVal(medicationMap, d.medication))}</div>
+        ${d.medication==='yes'?`<div class="karte-item full"><div class="ki-label">薬の種類</div>${val(d.medication_detail_text)}</div>`:''}
+        <div class="karte-item"><div class="ki-label">頭皮タイプ</div>${val(mapVal(scalpMap, d.scalp_type))}</div>
+        ${d.health_other?`<div class="karte-item full"><div class="ki-label">その他・備考</div>${val(d.health_other)}</div>`:''}
+      </div>
+    </div>
+
+    <div class="karte-section">
+      <div class="karte-section-title">施術履歴</div>
+      <div class="karte-grid">
+        <div class="karte-item"><div class="ki-label">カラー経験</div>${val(mapVal(colorMap, d.hist_color))}</div>
+        ${d.hist_color!=='no'?`<div class="karte-item"><div class="ki-label">直近のカラー</div>${val(mapVal(colorDateMap, d.hist_color_date))}</div>`:''}
+        ${d.hist_color!=='no'?`<div class="karte-item"><div class="ki-label">カラー頻度</div>${val(mapVal(colorFreqMap, d.hist_color_freq))}</div>`:''}
+        <div class="karte-item"><div class="ki-label">白髪の割合</div>${val(mapVal(grayMap, d.gray_ratio))}</div>
+        <div class="karte-item"><div class="ki-label">ブリーチ経験</div>${val(mapVal(bleachMap, d.hist_bleach))}</div>
+        ${d.hist_bleach!=='no'?`<div class="karte-item"><div class="ki-label">ブリーチ回数</div>${val(mapVal(bleachCountMap, d.hist_bleach_count))}</div>`:''}
+        ${d.hist_bleach!=='no'?`<div class="karte-item"><div class="ki-label">最後のブリーチ</div>${val(bleachLast)}</div>`:''}
+        <div class="karte-item"><div class="ki-label">パーマ経験</div>${val(mapVal(permMap, d.hist_perm))}</div>
+        ${d.hist_perm==='yes'?`<div class="karte-item"><div class="ki-label">最後のパーマ</div>${val(mapVal(permDateMap, d.hist_perm_date))}</div>`:''}
+        <div class="karte-item"><div class="ki-label">縮毛矯正経験</div>${val(mapVal(permMap, d.hist_straight))}</div>
+        ${d.hist_straight==='yes'?`<div class="karte-item"><div class="ki-label">最後の縮毛矯正</div>${val(mapVal(permDateMap, d.hist_straight_date))}</div>`:''}
+        ${d.history_other?`<div class="karte-item full"><div class="ki-label">その他履歴</div>${val(d.history_other)}</div>`:''}
+      </div>
+    </div>
+
+    <div class="karte-section">
+      <div class="karte-section-title">同意・入力履歴</div>
+      <div class="karte-grid">
+        <div class="karte-item"><div class="ki-label">直近の施術メニュー</div>${val(services)}</div>
+        <div class="karte-item"><div class="ki-label">写真掲載同意</div>${val(d.photo_consent==='yes'?'同意あり':'同意なし')}</div>
+        <div class="karte-item full"><div class="ki-label">入力履歴</div><div class="date-log-display">${dateLogHtml||'−'}</div></div>
+      </div>
+    </div>
+
+    ${d.signature ? `
+    <div class="karte-section">
+      <div class="karte-section-title">署名（最新）</div>
+      <div class="sign-display"><img src="${d.signature}" alt="署名"></div>
+    </div>` : ''}
+  `;
+}
+
+// ===== PDF生成 =====
+async function downloadPDF() {
+  if (!currentRecord) return;
+  const d = currentRecord;
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  // フォント設定（日本語はBase64埋め込みが必要だが、ここではシステムフォントで代替）
+  pdf.setFont('helvetica');
+
+  const margin = 15;
+  const pageW = 210;
+  const contentW = pageW - margin * 2;
+  let y = margin;
+
+  // ヘッダー
+  pdf.setFillColor(26, 26, 24);
+  pdf.rect(0, 0, 210, 18, 'F');
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFontSize(13);
+  pdf.text('tips  施術カルテ・同意書', margin, 12);
+  y = 26;
+
+  pdf.setTextColor(26, 26, 24);
+
+  // 名前
+  pdf.setFontSize(16);
+  pdf.setFont('helvetica','bold');
+  pdf.text(d.name || '−', margin, y);
+  pdf.setFontSize(10);
+  pdf.setFont('helvetica','normal');
+  pdf.setTextColor(120,120,120);
+  pdf.text(d.name_kana || '', margin + pdf.getTextWidth(d.name || '') + 4, y);
+  pdf.setTextColor(26,26,24);
+  y += 8;
+
+  // 区切り線
+  pdf.setDrawColor(212, 208, 200);
+  pdf.line(margin, y, pageW - margin, y);
+  y += 5;
+
+  function sectionTitle(title) {
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica','bold');
+    pdf.setTextColor(138,138,132);
+    pdf.text(title, margin, y);
+    y += 4;
+    pdf.setDrawColor(212,208,200);
+    pdf.line(margin, y, pageW-margin, y);
+    y += 4;
+    pdf.setTextColor(26,26,24);
+  }
+
+  function row(label, value, x, colW) {
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica','normal');
+    pdf.setTextColor(120,120,120);
+    pdf.text(label, x, y);
+    pdf.setTextColor(26,26,24);
+    pdf.setFontSize(10);
+    const v = value || '−';
+    const lines = pdf.splitTextToSize(v, colW - 4);
+    pdf.text(lines, x, y + 4);
+    return lines.length * 4 + 6;
+  }
+
+  function twoCol(l1, v1, l2, v2) {
+    const h1 = row(l1, v1, margin, contentW/2);
+    const h2 = row(l2, v2, margin + contentW/2, contentW/2);
+    y += Math.max(h1, h2);
+  }
+
+  function oneCol(label, value) {
+    const h = row(label, value, margin, contentW);
+    y += h;
+  }
+
+  // 基本情報
+  sectionTitle('基本情報');
+  twoCol('お名前', d.name, '生年月日', d.birthday);
+  twoCol('電話番号', d.phone, '性別', mapVal(genderMap, d.gender));
+  oneCol('住所', (d.postal||'') + ' ' + (d.address1||'') + ' ' + (d.address2||''));
+  y += 2;
+
+  // 健康状態
+  sectionTitle('健康状態');
+  twoCol('妊娠・授乳', mapVal(pregnancyMap, d.pregnancy), 'アレルギー', mapVal(allergyMap, d.allergy));
+  if (d.allergy==='yes') oneCol('アレルギー詳細', d.allergy_detail_text);
+  twoCol('頭皮・肌の症状', mapVal(skinMap, d.skin_condition), 'カラー異常反応歴', mapVal(reactionMap, d.color_reaction));
+  if (d.skin_condition==='yes') oneCol('症状詳細', d.skin_detail_text);
+  twoCol('服薬', mapVal(medicationMap, d.medication), '頭皮タイプ', mapVal(scalpMap, d.scalp_type));
+  if (d.medication==='yes') oneCol('薬の種類', d.medication_detail_text);
+  if (d.health_other) oneCol('その他・備考', d.health_other);
+  y += 2;
+
+  // 施術履歴
+  sectionTitle('施術履歴');
+  twoCol('カラー経験', mapVal(colorMap, d.hist_color), '白髪の割合', mapVal(grayMap, d.gray_ratio));
+  if (d.hist_color!=='no') twoCol('直近のカラー', mapVal(colorDateMap, d.hist_color_date), 'カラー頻度', mapVal(colorFreqMap, d.hist_color_freq));
+  twoCol('ブリーチ経験', mapVal(bleachMap, d.hist_bleach), 'パーマ経験', mapVal(permMap, d.hist_perm));
+  twoCol('縮毛矯正経験', mapVal(permMap, d.hist_straight), '写真掲載同意', d.photo_consent==='yes'?'同意あり':'同意なし');
+  if (d.history_other) oneCol('その他履歴', d.history_other);
+  y += 2;
+
+  // 入力履歴
+  sectionTitle('入力履歴');
+  if (d.first_input_date) oneCol('初回入力日', d.first_input_date);
+  if (d.additional_dates) {
+    d.additional_dates.split('|').forEach(entry => {
+      const m = entry.match(/追加入力（([^）]+)）\s*(.+)/);
+      if (m) {
+        const svcs = m[1].split(/[,・]/).map(s => svcNameMap[s.trim()]||s.trim()).join('・');
+        oneCol(`追加入力（${svcs}）`, m[2].trim());
+      }
+    });
+  }
+  y += 2;
+
+  // 署名
+  if (d.signature) {
+    sectionTitle('署名');
+    const imgY = y;
+    const imgH = 30;
+    if (imgY + imgH < 280) {
+      try {
+        pdf.addImage(d.signature, 'PNG', margin, imgY, 80, imgH);
+        y = imgY + imgH + 4;
+      } catch(e) {}
+    }
+  }
+
+  const filename = `tips_karte_${(d.name||'unknown').replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+  pdf.save(filename);
+}
+
+const genderMap = {female:'女性', male:'男性', other:'その他', no_answer:'回答しない'};
+const pregnancyMap = {no:'いいえ', pregnant:'妊娠中', nursing:'授乳中'};
+const scalpMap = {normal:'普通', dry:'乾燥しやすい', oily:'脂っぽい', sensitive:'敏感'};
+const colorMap = {no:'なし', salon:'サロンで', home:'自宅で', both:'両方'};
+const grayMap = {none:'ほぼなし', partial:'部分的', half:'半分程度', most:'多め'};
+const bleachMap = {no:'なし', yes_recent:'あり（1年以内）', yes_old:'あり（1年以上前）'};
+const permMap = {no:'なし', yes:'あり'};
+const skinMap = {no:'とくになし', yes:'あり'};
+const allergyMap = {no:'とくになし', yes:'あり'};
+const reactionMap = {no:'ない', yes:'ある', unknown:'わからない'};
+const medicationMap = {no:'なし', yes:'あり'};
+const colorDateMap = {'1month':'1ヶ月以内','2month':'約2ヶ月前','3month':'約3ヶ月前','6month':'約6ヶ月前','1year':'約1年前','over1year':'1年以上前'};
+const colorFreqMap = {'1month':'1ヶ月に1回','2month':'2ヶ月に1回','3month':'3ヶ月に1回','halfyear':'半年に1回','irregular':'不定期'};
+const bleachCountMap = {'1':'1回','2-3':'2〜3回','4-5':'4〜5回','over6':'6回以上','unknown':'わからない'};
+const bleachLastRecentMap = {'1month':'1ヶ月以内','3month':'3ヶ月以内','6month':'半年以内','1year':'約1年以内'};
+const bleachLastOldMap = {'over1year':'1年以上前','over3year':'3年以上前','unknown':'覚えていない'};
+const permDateMap = {'3month':'3ヶ月以内','6month':'約6ヶ月前','1year':'約1年前','over1year':'1年以上前'};
+const svcNameMap = {cut:'カット',color:'カラー',bleach:'ブリーチ',perm:'パーマ',straight:'縮毛矯正',treatment:'トリートメント'};
+function mapVal(map, key) { return map[key] || key || '−'; }
+
+// セッション確認
+window.addEventListener('load', () => {
+  if (sessionStorage.getItem('tips_admin') === '1') {
+    document.getElementById('pwScreen').style.display = 'none';
+    document.getElementById('mainScreen').style.display = 'block';
+  }
+});
+</script>
+</body>
+</html>
