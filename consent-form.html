@@ -145,6 +145,7 @@
   .btn-back { background: var(--paper-warm); color: var(--ink-mid); border: 1px solid var(--rule); }
   .btn-next { background: var(--ink); color: var(--paper); }
   .btn-submit { background: var(--accent); color: white; flex: 2; }
+  .btn-reset { background: var(--warn-light); color: var(--warn); border: 1px solid #d4a09a; font-size: var(--fs-sm); flex: 0 0 auto; padding: 16px 14px; }
 
   .complete-screen { text-align: center; padding: 70px 24px 40px; display: none; }
   .complete-screen.active { display: block; }
@@ -595,11 +596,13 @@
   <div class="complete-icon">✓</div>
   <h2>ご記入ありがとうございます</h2>
   <p>内容を確認いたします。<br>しばらくお待ちください。</p>
+  <button class="btn btn-submit" style="max-width:260px;margin:28px auto 0;display:block" onclick="resetAll()">終了する</button>
 </div>
 
 </main>
 
 <div class="nav-bar" id="navBar" style="display:none">
+  <button class="btn btn-reset" id="btnReset" onclick="confirmReset()">最初から</button>
   <button class="btn btn-back" id="btnBack" onclick="prevStep()" style="display:none">もどる</button>
   <button class="btn btn-next" id="btnNext" onclick="nextStep()">つぎへ</button>
 </div>
@@ -897,9 +900,50 @@ function showStep(n) {
 function updateNav() {
   const list=getStepList(), idx=list.indexOf(currentStep);
   const back=document.getElementById('btnBack'), next=document.getElementById('btnNext');
+  const reset=document.getElementById('btnReset');
   back.style.display = idx>0?'block':'none';
+  // Step5（署名）ではリセットボタンを非表示
+  if (reset) reset.style.display = currentStep===4?'none':'block';
   if (idx===list.length-1) { next.textContent='送信する'; next.className='btn btn-submit'; next.onclick=submitForm; }
   else { next.textContent='つぎへ'; next.className='btn btn-next'; next.onclick=nextStep; }
+}
+
+function confirmReset() {
+  if (confirm('入力内容をすべて消去して最初からやり直しますか？')) resetAll();
+}
+
+function resetAll() {
+  // フォームリセット
+  document.querySelectorAll('input[type="text"], input[type="tel"], textarea').forEach(el => el.value = '');
+  document.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(el => el.checked = false);
+  document.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
+  document.querySelectorAll('.conditional').forEach(el => el.classList.remove('show'));
+  document.querySelectorAll('.service-item').forEach(el => el.classList.remove('checked'));
+  document.querySelectorAll('.consent-block').forEach(el => el.classList.remove('checked'));
+  document.querySelectorAll('.svc-consented').forEach(el => el.remove());
+  document.querySelectorAll('.existing-banner').forEach(el => el.classList.remove('show'));
+  document.getElementById('riskBlocks').innerHTML = '';
+  const commonList = document.getElementById('commonConsentList');
+  if (commonList) commonList.classList.remove('all-checked');
+  const agreeLabel = document.getElementById('agreeAllLabel');
+  if (agreeLabel) agreeLabel.classList.remove('checked','error');
+  clearSign();
+  initDateSelects();
+
+  // 状態リセット
+  currentStep = 0; isRepeat = false; existingData = null;
+  signHasContent = false;
+
+  // 画面リセット
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('complete').classList.remove('active');
+  document.getElementById('modeScreen').style.display = 'block';
+  document.getElementById('searchScreen').style.display = 'none';
+  document.getElementById('progressBar').style.display = 'none';
+  document.getElementById('navBar').style.display = 'none';
+  document.querySelectorAll('.progress-step').forEach(s => { s.style.display='block'; s.classList.remove('active','done'); });
+  document.getElementById('f_pregnancy').style.display = 'none';
+  window.scrollTo({top:0,behavior:'smooth'});
 }
 function updateProgress() {
   const list=getStepList(), idx=list.indexOf(currentStep);
