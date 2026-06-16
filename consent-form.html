@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>施術メニューの確認および同意書 | tips</title>
+
+<style>
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #1a1a18; --ink-mid: #4a4a46; --ink-light: #8a8a84;
+    --rule: #d4d0c8; --paper: #f8f6f1; --paper-warm: #eeebe3;
+    --accent: #2c5f4a; --accent-light: #e8f0ec;
+    --warn: #8b3a2a; --warn-light: #f5ece9; --radius: 2px;
+    --fs-base: 17px; --fs-sm: 14px; --fs-xs: 12px; --fs-label: 13px;
+  }
+  body { font-family: -apple-system, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', YuGothic, sans-serif; background: var(--paper); color: var(--ink); font-size: var(--fs-base); line-height: 1.75; min-height: 100vh; }
+
+  header { background: var(--ink); color: var(--paper); padding: 24px 24px 20px; text-align: center; }
+  header h1 { font-family: 'Hiragino Mincho ProN', 'Yu Mincho', YuMincho, serif; font-size: 24px; font-weight: 600; letter-spacing: 0.12em; }
+  header .subtitle { font-size: var(--fs-sm); color: #aaa; margin-top: 6px; letter-spacing: 0.04em; }
+
+  .progress-bar { background: #2e2e2c; padding: 12px 24px; display: flex; gap: 8px; justify-content: center; }
+  .progress-step { width: 32px; height: 3px; background: #444; border-radius: 2px; transition: background 0.3s; }
+  .progress-step.active { background: var(--accent); }
+  .progress-step.done { background: #666; }
+
+  main { max-width: 600px; margin: 0 auto; padding: 0 0 90px; }
+
+  /* モード選択 */
+  .mode-screen { padding: 32px 22px; }
+  .mode-title { font-family: 'Hiragino Mincho ProN', 'Yu Mincho', YuMincho, serif; font-size: 22px; font-weight: 600; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+  .mode-lead { font-size: var(--fs-base); color: var(--ink-mid); margin-bottom: 28px; line-height: 1.85; }
+  .mode-card { background: white; border: 1.5px solid var(--rule); border-radius: var(--radius); padding: 22px 20px; margin-bottom: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; -webkit-tap-highlight-color: transparent; }
+  .mode-card:active { border-color: var(--accent); background: var(--accent-light); }
+  .mode-card h3 { font-size: var(--fs-base); font-weight: 700; margin-bottom: 6px; }
+  .mode-card p { font-size: var(--fs-sm); color: var(--ink-mid); line-height: 1.7; }
+
+  /* 検索 */
+  .search-screen { padding: 32px 22px; display: none; }
+
+  /* セクション */
+  .section { display: none; padding: 28px 22px 20px; }
+  .section.active { display: block; }
+  .section-label { font-size: var(--fs-xs); letter-spacing: 0.25em; color: var(--ink-light); margin-bottom: 6px; }
+  .section-title { font-family: 'Hiragino Mincho ProN', 'Yu Mincho', YuMincho, serif; font-size: 22px; font-weight: 600; margin-bottom: 22px; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+
+  /* フィールド */
+  .field { margin-bottom: 22px; }
+  .field > label:first-child { display: block; font-size: var(--fs-label); font-weight: 500; color: var(--ink-mid); margin-bottom: 8px; letter-spacing: 0.03em; }
+  .req { color: var(--warn); margin-left: 3px; font-size: var(--fs-xs); }
+  .field input[type="text"], .field input[type="tel"], .field select, .field textarea {
+    width: 100%; padding: 13px 15px; border: 1px solid var(--rule); border-radius: var(--radius);
+    background: white; font-family: inherit; font-size: var(--fs-base); color: var(--ink);
+    outline: none; transition: border-color 0.2s; -webkit-appearance: none; appearance: none;
+  }
+  .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a8a84' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 15px center; padding-right: 40px; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field textarea { min-height: 90px; resize: vertical; line-height: 1.7; }
+
+  .date-selects { display: flex; gap: 8px; }
+  .date-selects select { flex: 1; }
+
+  .postal-row { display: flex; gap: 10px; }
+  .postal-row input { flex: 1; }
+  .postal-btn { padding: 13px 14px; background: var(--ink); color: white; border: none; border-radius: var(--radius); font-family: inherit; font-size: var(--fs-sm); cursor: pointer; white-space: nowrap; flex-shrink: 0; }
+  .postal-btn:disabled { opacity: 0.5; cursor: default; }
+
+  /* バリデーション */
+  .field.error input, .field.error textarea, .field.error select { border-color: var(--warn) !important; background: var(--warn-light) !important; }
+  .field.error .radio-group { outline: 2px solid var(--warn); outline-offset: 5px; border-radius: 2px; }
+  .field.error .service-grid { outline: 2px solid var(--warn); outline-offset: 5px; border-radius: 2px; }
+  .field.error .date-selects select { border-color: var(--warn) !important; background: var(--warn-light) !important; }
+  .error-msg { display: none; font-size: var(--fs-xs); color: var(--warn); margin-top: 6px; }
+  .field.error .error-msg { display: block; }
+  .validation-summary { background: var(--warn-light); border: 1.5px solid var(--warn); border-radius: var(--radius); padding: 13px 15px; font-size: var(--fs-sm); color: #5c2a1e; margin-bottom: 22px; display: none; line-height: 1.7; }
+  .validation-summary.show { display: block; }
+
+  /* ラジオ・チェック */
+  .radio-group, .check-group { display: flex; flex-wrap: wrap; gap: 9px; }
+  .radio-group label, .check-group label {
+    display: flex; align-items: center; gap: 8px; font-size: var(--fs-base); font-weight: 400;
+    color: var(--ink); cursor: pointer; background: white; border: 1px solid var(--rule);
+    border-radius: var(--radius); padding: 11px 16px; margin: 0;
+    transition: border-color 0.15s, background 0.15s; user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .radio-group input[type="radio"], .check-group input[type="checkbox"] { accent-color: var(--accent); width: 17px; height: 17px; flex-shrink: 0; }
+  .radio-group label:has(input:checked), .check-group label:has(input:checked) { border-color: var(--accent); background: var(--accent-light); }
+
+  /* サービスグリッド */
+  .service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .service-item { background: white; border: 1px solid var(--rule); border-radius: var(--radius); padding: 16px 14px; cursor: pointer; display: flex; align-items: flex-start; gap: 11px; user-select: none; transition: border-color 0.15s, background 0.15s; -webkit-tap-highlight-color: transparent; }
+  .service-item input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; flex-shrink: 0; margin-top: 2px; }
+  .service-item.checked { border-color: var(--accent); background: var(--accent-light); }
+  .service-item .svc-name { font-weight: 500; font-size: var(--fs-base); }
+  .service-item .svc-note { font-size: var(--fs-xs); color: var(--ink-light); margin-top: 3px; }
+
+  .alert { background: var(--warn-light); border-left: 3px solid var(--warn); padding: 13px 15px; border-radius: 0 var(--radius) var(--radius) 0; font-size: var(--fs-sm); color: #5c2a1e; margin-bottom: 22px; line-height: 1.7; }
+  .info-box { background: var(--accent-light); border-left: 3px solid var(--accent); padding: 13px 15px; border-radius: 0 var(--radius) var(--radius) 0; font-size: var(--fs-sm); color: #1a3d2e; margin-bottom: 22px; line-height: 1.7; }
+
+  /* 確認事項ブロック（施術別） */
+  .consent-block { background: white; border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px 15px; margin-bottom: 9px; display: flex; align-items: flex-start; gap: 12px; }
+  .consent-block input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; flex-shrink: 0; margin-top: 3px; cursor: pointer; }
+  .consent-block-text { font-size: var(--fs-sm); line-height: 1.7; color: var(--ink-mid); cursor: pointer; }
+  .consent-block.checked { border-color: var(--accent); background: var(--accent-light); }
+  .consent-block.checked .consent-block-text { color: var(--ink); }
+
+  /* 共通確認事項まとめチェック */
+  .common-consent-list { background: white; border: 1px solid var(--rule); border-radius: var(--radius); padding: 0; margin-bottom: 14px; overflow: hidden; }
+  .common-consent-item { padding: 13px 15px; font-size: var(--fs-sm); color: var(--ink-mid); line-height: 1.7; border-bottom: 1px solid var(--rule); }
+  .common-consent-footer { display: flex; align-items: center; gap: 12px; background: var(--paper-warm); padding: 14px 15px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .common-consent-footer input[type="checkbox"] { accent-color: var(--accent); width: 20px; height: 20px; flex-shrink: 0; }
+  .common-consent-footer span { font-size: var(--fs-base); font-weight: 500; color: var(--ink); }
+  .common-consent-list.all-checked .common-consent-footer { background: var(--accent-light); }
+
+  /* 日付ログ */
+  .date-log { font-size: var(--fs-sm); color: var(--ink-mid); line-height: 2.1; background: white; border: 1px solid var(--rule); border-radius: var(--radius); padding: 13px 15px; }
+  .date-log-label { font-size: var(--fs-xs); color: var(--ink-light); display: block; margin-bottom: 2px; letter-spacing: 0.05em; }
+
+  /* 全同意 */
+  .agree-all { background: white; border: 1.5px solid var(--rule); border-radius: var(--radius); padding: 18px 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: border-color 0.15s, background 0.15s; margin-bottom: 22px; -webkit-tap-highlight-color: transparent; }
+  .agree-all input[type="checkbox"] { accent-color: var(--accent); width: 22px; height: 22px; flex-shrink: 0; }
+  .agree-all.checked { border-color: var(--accent); background: var(--accent-light); }
+  .agree-all.error { border-color: var(--warn) !important; background: var(--warn-light) !important; }
+  .agree-all .agree-text { font-size: var(--fs-base); font-weight: 500; color: var(--ink); }
+  .agree-all .agree-subtext { font-size: var(--fs-xs); color: var(--ink-light); margin-top: 3px; }
+
+  /* 署名 */
+  .sign-canvas-wrap { border: 1.5px solid var(--rule); border-radius: var(--radius); background: white; position: relative; height: 180px; overflow: hidden; touch-action: none; overscroll-behavior: none; }
+  .sign-canvas-wrap.error { border-color: var(--warn) !important; }
+  #signCanvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; display: block; }
+  .sign-placeholder { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: var(--fs-sm); color: #ccc; pointer-events: none; white-space: nowrap; }
+  .sign-clear { font-size: var(--fs-sm); color: var(--ink-light); text-decoration: underline; cursor: pointer; background: none; border: none; padding: 9px 0 0; font-family: inherit; display: block; }
+
+  .divider { border: none; border-top: 1px solid var(--rule); margin: 22px 0; }
+
+  /* リスクブロック */
+  .risk-section-label { font-size: var(--fs-label); font-weight: 500; color: var(--ink-mid); margin-bottom: 10px; letter-spacing: 0.03em; }
+
+  /* ナビ */
+  .nav-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--rule); padding: 13px 22px; display: flex; gap: 10px; max-width: 600px; margin: 0 auto; }
+  .btn { flex: 1; padding: 16px; border: none; border-radius: var(--radius); font-family: inherit; font-size: var(--fs-base); font-weight: 500; cursor: pointer; letter-spacing: 0.04em; -webkit-tap-highlight-color: transparent; }
+  .btn-back { background: var(--paper-warm); color: var(--ink-mid); border: 1px solid var(--rule); }
+  .btn-next { background: var(--ink); color: var(--paper); }
+  .btn-submit { background: var(--accent); color: white; flex: 2; }
+
+  .complete-screen { text-align: center; padding: 70px 24px 40px; display: none; }
+  .complete-screen.active { display: block; }
+  .complete-icon { width: 70px; height: 70px; background: var(--accent-light); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 22px; font-size: 32px; }
+  .complete-screen h2 { font-family: 'Hiragino Mincho ProN', 'Yu Mincho', YuMincho, serif; font-size: 22px; margin-bottom: 14px; }
+  .complete-screen p { font-size: var(--fs-base); color: var(--ink-mid); line-height: 1.8; }
+
+  .conditional { display: none; }
+  .conditional.show { display: block; }
+
+  .existing-banner { background: var(--accent-light); border: 1px solid var(--accent); border-radius: var(--radius); padding: 13px 15px; font-size: var(--fs-sm); color: #1a3d2e; margin-bottom: 22px; display: none; }
+  .existing-banner.show { display: block; }
+
+  .loading-overlay { position: fixed; inset: 0; background: rgba(248,246,241,0.92); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 100; }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 38px; height: 38px; border: 3px solid var(--rule); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay p { font-size: var(--fs-sm); color: var(--ink-mid); }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p id="loadingText">読み込み中…</p>
+</div>
+
+<header>
+  <h1>tips</h1>
+  <div class="subtitle">施術メニューの確認および同意書</div>
+</header>
+
+<div class="progress-bar" id="progressBar" style="display:none">
+  <div class="progress-step"></div>
+  <div class="progress-step"></div>
+  <div class="progress-step"></div>
+  <div class="progress-step"></div>
+  <div class="progress-step"></div>
+</div>
+
+<main>
+
+<!-- モード選択 -->
+<div class="mode-screen" id="modeScreen">
+  <div class="mode-title">ようこそ</div>
+  <p class="mode-lead">ご来店ありがとうございます。<br>tipsでは、初回ご来店時にお客さまの健康状態や施術履歴などを確認させていただいております。また、それぞれの施術メニューについての注意事項をご確認いただくことで安心・安全な施術の提供に役立てております。<br>いただいた情報は施術内容の判断や薬剤選定に活用し、第三者への提供は一切いたしません。ご入力には3〜5分ほどかかります。ご協力をよろしくお願いいたします。</p>
+  <div class="mode-card" onclick="startNew()">
+    <h3>🌱 はじめてのご来店</h3>
+    <p>基本情報・健康状態・施術履歴などをご入力いただき、注意事項への同意をお願いしております。</p>
+  </div>
+  <div class="mode-card" onclick="showSearch()">
+    <h3>✂️ はじめてのメニューの同意書</h3>
+    <p>当店では初めてのメニューをご希望される方。<br>以前のご入力内容を呼び出して、追加メニューの同意と入力済み項目の変更ができます。</p>
+  </div>
+</div>
+
+<!-- 検索画面 -->
+<div class="search-screen" id="searchScreen">
+  <div class="section-title">お客さま情報の確認</div>
+  <div class="info-box">登録時の電話番号を入力してください。以前のご入力内容を呼び出します。</div>
+  <div class="field" id="f_searchPhone">
+    <label>電話番号<span class="req">*</span></label>
+    <input type="tel" id="searchPhone" placeholder="090-0000-0000" inputmode="numeric">
+    <span class="error-msg">電話番号を入力してください</span>
+  </div>
+  <button class="btn btn-next" style="width:100%;margin-top:4px" onclick="searchCustomer()">検索する</button>
+  <button class="btn btn-back" style="width:100%;margin-top:12px;border:1px solid var(--rule)" onclick="backToMode()">もどる</button>
+</div>
+
+<!-- STEP 0: 基本情報 -->
+<div class="section" id="step-0">
+  <div class="section-label">Step 1 / 5</div>
+  <div class="section-title">基本情報</div>
+  <div class="existing-banner" id="banner0">📋 以前のご入力内容を呼び出しました。変更がある場合は修正してください。</div>
+  <div class="validation-summary" id="vs0">⚠️ 未入力の項目があります。ご確認ください。</div>
+
+  <div class="field" id="f_name">
+    <label>お名前<span class="req">*</span></label>
+    <input type="text" id="name" placeholder="山田 花子">
+    <span class="error-msg">お名前を入力してください</span>
+  </div>
+  <div class="field" id="f_name_kana">
+    <label>ふりがな<span class="req">*</span></label>
+    <input type="text" id="name_kana" placeholder="やまだ はなこ" inputmode="hiragana">
+    <span class="error-msg">ふりがなを入力してください</span>
+  </div>
+  <div class="field" id="f_birthday">
+    <label>生年月日<span class="req">*</span></label>
+    <div class="date-selects">
+      <select id="bd_year"><option value="">年</option></select>
+      <select id="bd_month"><option value="">月</option></select>
+      <select id="bd_day"><option value="">日</option></select>
+    </div>
+    <span class="error-msg">生年月日を選択してください</span>
+  </div>
+  <div class="field" id="f_phone">
+    <label>ご連絡先（電話番号）<span class="req">*</span></label>
+    <input type="tel" id="phone" placeholder="090-0000-0000" inputmode="numeric">
+    <span class="error-msg">電話番号を入力してください</span>
+  </div>
+  <div class="field" id="f_postal">
+    <label>郵便番号<span class="req">*</span></label>
+    <div class="postal-row">
+      <input type="tel" id="postal" placeholder="3990000" inputmode="numeric" maxlength="8">
+      <button class="postal-btn" id="postalBtn" onclick="lookupPostal()">住所を入力</button>
+    </div>
+    <span class="error-msg">郵便番号を入力してください</span>
+  </div>
+  <div class="field" id="f_address1">
+    <label>都道府県・市区町村<span class="req">*</span></label>
+    <input type="text" id="address1" placeholder="長野県松本市">
+    <span class="error-msg">都道府県・市区町村を入力してください</span>
+  </div>
+  <div class="field">
+    <label>番地・建物名</label>
+    <input type="text" id="address2" placeholder="1234-5 ○○アパート101">
+  </div>
+  <div class="field" id="f_gender">
+    <label>性別<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="gender" value="female" onchange="onGenderChange()"> 女性</label>
+      <label><input type="radio" name="gender" value="male" onchange="onGenderChange()"> 男性</label>
+      <label><input type="radio" name="gender" value="other" onchange="onGenderChange()"> その他</label>
+      <label><input type="radio" name="gender" value="no_answer" onchange="onGenderChange()"> 回答しない</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+</div>
+
+<!-- STEP 1: 健康状態 -->
+<div class="section" id="step-1">
+  <div class="section-label">Step 2 / 5</div>
+  <div class="section-title">健康状態の確認</div>
+  <div class="existing-banner" id="banner1">📋 以前のご入力内容を呼び出しました。変更がある場合は修正してください。</div>
+  <div class="validation-summary" id="vs1">⚠️ 未入力の項目があります。ご確認ください。</div>
+  <div class="alert">ご記入いただいた情報は施術の安全のためにのみ使用し、第三者に提供することはありません。</div>
+
+  <div class="field" id="f_pregnancy">
+    <label>現在、妊娠中または授乳中ですか？<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="pregnancy" value="no"> いいえ</label>
+      <label><input type="radio" name="pregnancy" value="pregnant"> 妊娠中</label>
+      <label><input type="radio" name="pregnancy" value="nursing"> 授乳中</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+
+  <div class="field" id="f_skin_condition">
+    <label>頭皮・肌に何らかの症状がありますか？<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="skin_condition" value="no" onchange="toggleConditional('skin_detail',false)"> とくになし</label>
+      <label><input type="radio" name="skin_condition" value="yes" onchange="toggleConditional('skin_detail',true)"> ある</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+  <div class="conditional field" id="skin_detail">
+    <label>具体的にお聞かせください</label>
+    <textarea id="skin_detail_text" placeholder="例：アトピー性皮膚炎がある、頭皮が荒れやすい、など"></textarea>
+  </div>
+
+  <div class="field" id="f_allergy">
+    <label>アレルギーはありますか？<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="allergy" value="no" onchange="toggleConditional('allergy_detail',false)"> とくになし</label>
+      <label><input type="radio" name="allergy" value="yes" onchange="toggleConditional('allergy_detail',true)"> ある</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+  <div class="conditional field" id="allergy_detail">
+    <label>具体的にお聞かせください</label>
+    <textarea id="allergy_detail_text" placeholder="例：ジアミンアレルギー、金属アレルギー、花粉症、など"></textarea>
+  </div>
+
+  <div class="field" id="f_color_reaction">
+    <label>過去にヘアカラーで異常反応（かゆみ・赤み・腫れ等）が出たことがありますか？<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="color_reaction" value="no"> ない</label>
+      <label><input type="radio" name="color_reaction" value="yes" onchange="toggleConditional('color_reaction_detail',true)"> ある</label>
+      <label><input type="radio" name="color_reaction" value="unknown"> わからない</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+  <div class="conditional field" id="color_reaction_detail">
+    <label>具体的にお聞かせください</label>
+    <textarea id="color_reaction_detail_text" placeholder="例：カラー後に頭皮が赤くなった、など"></textarea>
+  </div>
+
+  <div class="field" id="f_medication">
+    <label>現在、継続的に服用中のお薬はありますか？<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="medication" value="no" onchange="toggleConditional('medication_detail',false)"> なし</label>
+      <label><input type="radio" name="medication" value="yes" onchange="toggleConditional('medication_detail',true)"> あり</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+  <div class="conditional field" id="medication_detail">
+    <label>薬の種類（わかる範囲で）</label>
+    <textarea id="medication_detail_text" placeholder="例：降圧剤、抗凝固剤、ホルモン剤、など"></textarea>
+  </div>
+
+  <div class="field">
+    <label>頭皮のタイプ（自己判断で構いません）</label>
+    <div class="radio-group">
+      <label><input type="radio" name="scalp_type" value="normal"> 普通</label>
+      <label><input type="radio" name="scalp_type" value="dry"> 乾燥しやすい</label>
+      <label><input type="radio" name="scalp_type" value="oily"> 脂っぽい</label>
+      <label><input type="radio" name="scalp_type" value="sensitive"> 敏感</label>
+    </div>
+  </div>
+  <div class="field">
+    <label>その他、施術にあたって伝えておきたいこと</label>
+    <textarea id="health_other" placeholder="気になること、不安なことがあればご自由にどうぞ"></textarea>
+  </div>
+</div>
+
+<!-- STEP 2: 施術履歴 -->
+<div class="section" id="step-2">
+  <div class="section-label">Step 3 / 5</div>
+  <div class="section-title">これまでの施術履歴</div>
+  <div class="existing-banner" id="banner2">📋 以前のご入力内容を呼び出しました。変更がある場合は修正してください。</div>
+  <div class="validation-summary" id="vs2">⚠️ 未入力の項目があります。ご確認ください。</div>
+  <div class="info-box">以前の施術内容が今回の仕上がりや安全性に影響することがあります。わかる範囲でお教えください。</div>
+
+  <div class="field" id="f_hist_color">
+    <label>カラーの経験はありますか？<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="hist_color" value="no" onchange="toggleConditional('hist_color_detail',false)"> なし</label>
+      <label><input type="radio" name="hist_color" value="salon" onchange="toggleConditional('hist_color_detail',true)"> サロンで</label>
+      <label><input type="radio" name="hist_color" value="home" onchange="toggleConditional('hist_color_detail',true)"> 自宅で</label>
+      <label><input type="radio" name="hist_color" value="both" onchange="toggleConditional('hist_color_detail',true)"> 両方</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+  <div class="conditional" id="hist_color_detail">
+    <div class="field">
+      <label>直近のカラー時期</label>
+      <select id="hist_color_date">
+        <option value="">選択してください</option>
+        <option value="1month">1ヶ月以内</option>
+        <option value="2month">約2ヶ月前</option>
+        <option value="3month">約3ヶ月前</option>
+        <option value="6month">約6ヶ月前</option>
+        <option value="1year">約1年前</option>
+        <option value="over1year">1年以上前</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>カラーの頻度</label>
+      <select id="hist_color_freq">
+        <option value="">選択してください</option>
+        <option value="1month">1ヶ月に1回程度</option>
+        <option value="2month">2ヶ月に1回程度</option>
+        <option value="3month">3ヶ月に1回程度</option>
+        <option value="halfyear">半年に1回程度</option>
+        <option value="irregular">不定期</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field" id="f_gray_ratio">
+    <label>白髪の割合（おおよそで）<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="gray_ratio" value="none"> ほぼなし</label>
+      <label><input type="radio" name="gray_ratio" value="partial"> 部分的</label>
+      <label><input type="radio" name="gray_ratio" value="half"> 半分程度</label>
+      <label><input type="radio" name="gray_ratio" value="most"> 多め</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+
+  <div class="field" id="f_hist_bleach">
+    <label>ブリーチ（脱色）の経験はありますか？<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="hist_bleach" value="no" onchange="onBleachChange('no')"> なし</label>
+      <label><input type="radio" name="hist_bleach" value="yes_recent" onchange="onBleachChange('yes_recent')"> あり（1年以内）</label>
+      <label><input type="radio" name="hist_bleach" value="yes_old" onchange="onBleachChange('yes_old')"> あり（1年以上前）</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+  <div class="conditional" id="hist_bleach_detail">
+    <div class="field">
+      <label>ブリーチのおおよその回数</label>
+      <select id="hist_bleach_count">
+        <option value="">選択してください</option>
+        <option value="1">1回</option>
+        <option value="2-3">2〜3回</option>
+        <option value="4-5">4〜5回</option>
+        <option value="over6">6回以上</option>
+        <option value="unknown">わからない</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>最後のブリーチ時期</label>
+      <select id="hist_bleach_last">
+        <option value="">選択してください</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field" id="f_hist_perm">
+    <label>パーマの経験はありますか？<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="hist_perm" value="no" onchange="toggleConditional('hist_perm_detail',false)"> なし</label>
+      <label><input type="radio" name="hist_perm" value="yes" onchange="toggleConditional('hist_perm_detail',true)"> あり</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+  <div class="conditional" id="hist_perm_detail">
+    <div class="field">
+      <label>最後のパーマ時期</label>
+      <select id="hist_perm_date">
+        <option value="">選択してください</option>
+        <option value="3month">3ヶ月以内</option>
+        <option value="6month">約6ヶ月前</option>
+        <option value="1year">約1年前</option>
+        <option value="over1year">1年以上前</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field" id="f_hist_straight">
+    <label>縮毛矯正の経験はありますか？<span class="req">*</span></label>
+    <div class="radio-group">
+      <label><input type="radio" name="hist_straight" value="no" onchange="toggleConditional('hist_straight_detail',false)"> なし</label>
+      <label><input type="radio" name="hist_straight" value="yes" onchange="toggleConditional('hist_straight_detail',true)"> あり</label>
+    </div>
+    <span class="error-msg">選択してください</span>
+  </div>
+  <div class="conditional" id="hist_straight_detail">
+    <div class="field">
+      <label>最後の縮毛矯正時期</label>
+      <select id="hist_straight_date">
+        <option value="">選択してください</option>
+        <option value="3month">3ヶ月以内</option>
+        <option value="6month">約6ヶ月前</option>
+        <option value="1year">約1年前</option>
+        <option value="over1year">1年以上前</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>その他、気になる施術履歴があればご記入ください</label>
+    <textarea id="history_other" placeholder="例：縮毛矯正と市販カラーを繰り返していた、など"></textarea>
+  </div>
+</div>
+
+<!-- STEP 3: 施術選択・確認事項 -->
+<div class="section" id="step-3">
+  <div class="section-label" id="step3Label">Step 4 / 5</div>
+  <div class="section-title">本日の施術と確認事項</div>
+  <div class="validation-summary" id="vs3">⚠️ 施術の選択と、すべての確認事項へのチェックが必要です。</div>
+
+  <div class="field" id="f_services">
+    <label>本日ご希望の施術をお選びください（複数可）<span class="req">*</span></label>
+    <div class="service-grid">
+      <label class="service-item" onclick="toggleService(this)">
+        <input type="checkbox" name="services" value="cut">
+        <div><div class="svc-name">カット</div></div>
+      </label>
+      <label class="service-item" onclick="toggleService(this)">
+        <input type="checkbox" name="services" value="color">
+        <div><div class="svc-name">カラー</div><div class="svc-note">白髪染め含む</div></div>
+      </label>
+      <label class="service-item" onclick="toggleService(this)">
+        <input type="checkbox" name="services" value="bleach">
+        <div><div class="svc-name">ブリーチ</div></div>
+      </label>
+      <label class="service-item" onclick="toggleService(this)">
+        <input type="checkbox" name="services" value="perm">
+        <div><div class="svc-name">パーマ</div></div>
+      </label>
+      <label class="service-item" onclick="toggleService(this)">
+        <input type="checkbox" name="services" value="straight">
+        <div><div class="svc-name">縮毛矯正</div></div>
+      </label>
+      <label class="service-item" onclick="toggleService(this)">
+        <input type="checkbox" name="services" value="treatment">
+        <div><div class="svc-name">トリートメント</div></div>
+      </label>
+    </div>
+    <span class="error-msg">施術を1つ以上選択してください</span>
+  </div>
+
+  <!-- 施術別確認事項（動的） -->
+  <div id="riskBlocks"></div>
+
+  <div class="divider"></div>
+
+  <!-- 共通確認事項 -->
+  <p class="risk-section-label">共通の確認事項</p>
+  <div class="common-consent-list" id="commonConsentList">
+    <div class="common-consent-item">施術前のカウンセリングにて、仕上がりのイメージや毛髪の状態を担当者と十分に確認します。</div>
+    <div class="common-consent-item">施術中・施術後に異常を感じた場合は、すみやかに担当者にお伝えします。</div>
+    <div class="common-consent-item">いただいた健康状態や施術履歴の情報は、施術の安全のためにのみ使用されます。</div>
+    <div class="common-consent-item">施術後の注意事項は担当者の説明に従い、守るよう努めます。</div>
+    <div class="common-consent-item">施術の仕上がりは毛髪の状態・コンディションによって個人差があることを理解しています。</div>
+    <label class="common-consent-footer" onclick="toggleCommonConsent()">
+      <input type="checkbox" id="commonConsentCb">
+      <span>確認しました</span>
+    </label>
+  </div>
+
+  <div class="field" style="margin-top:6px">
+    <label>施術写真の使用について</label>
+    <div class="check-group">
+      <label><input type="checkbox" id="photo_consent"> サロンのSNSや販促物への使用に同意します</label>
+    </div>
+    <p style="font-size:var(--fs-xs);color:var(--ink-light);margin-top:7px;">同意しない場合でも施術に影響はありません。</p>
+  </div>
+</div>
+
+<!-- STEP 4: 同意・署名 -->
+<div class="section" id="step-4">
+  <div class="section-label" id="step4Label">Step 5 / 5</div>
+  <div class="section-title">同意・署名</div>
+  <div class="validation-summary" id="vs4">⚠️ 同意チェックと署名が必要です。</div>
+  <div class="info-box">以上の内容を確認のうえ、下記にサインをお願いします。</div>
+
+  <div class="field">
+    <label>最終確認<span class="req">*</span></label>
+    <label class="agree-all" id="agreeAllLabel" onclick="toggleAgreeAll()">
+      <input type="checkbox" id="agreeAll">
+      <div>
+        <div class="agree-text">今回入力した内容をすべて確認の上、同意しました</div>
+        <div class="agree-subtext">記入内容に虚偽がないことを確認します</div>
+      </div>
+    </label>
+  </div>
+
+  <div class="field">
+    <label>署名<span class="req">*</span></label>
+    <div class="sign-canvas-wrap" id="signWrap">
+      <canvas id="signCanvas"></canvas>
+      <div class="sign-placeholder" id="signPlaceholder">ここにサインしてください</div>
+    </div>
+    <button class="sign-clear" onclick="clearSign()">署名をクリア</button>
+  </div>
+
+  <div class="field">
+    <label>入力日の記録</label>
+    <div class="date-log" id="dateLog"></div>
+  </div>
+</div>
+
+<!-- 完了 -->
+<div class="complete-screen" id="complete">
+  <div class="complete-icon">✓</div>
+  <h2>ご記入ありがとうございます</h2>
+  <p>内容を確認いたします。<br>しばらくお待ちください。</p>
+</div>
+
+</main>
+
+<div class="nav-bar" id="navBar" style="display:none">
+  <button class="btn btn-back" id="btnBack" onclick="prevStep()" style="display:none">もどる</button>
+  <button class="btn btn-next" id="btnNext" onclick="nextStep()">つぎへ</button>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwTwq-5z-g_fA3v_v2bQBOlQAPoa560tmJxo1Tccm88t85aew1VcdZPY8OmP9o0L7L4/exec';
+
+let currentStep = 0, isRepeat = false, existingData = null;
+let signDrawing = false, signHasContent = false, ctx = null;
+
+// ===== 生年月日 =====
+function initDateSelects() {
+  const yEl = document.getElementById('bd_year');
+  const mEl = document.getElementById('bd_month');
+  const dEl = document.getElementById('bd_day');
+  const thisYear = new Date().getFullYear();
+  for (let y = thisYear; y >= 1930; y--) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '年';
+    if (y === 1985) o.selected = true;
+    yEl.appendChild(o);
+  }
+  for (let m = 1; m <= 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = m + '月';
+    if (m === 6) o.selected = true;
+    mEl.appendChild(o);
+  }
+  for (let d = 1; d <= 31; d++) {
+    const o = document.createElement('option');
+    o.value = d; o.textContent = d + '日';
+    dEl.appendChild(o);
+  }
+}
+function getBirthday() {
+  const y = document.getElementById('bd_year').value;
+  const m = document.getElementById('bd_month').value;
+  const d = document.getElementById('bd_day').value;
+  if (!y || !m || !d) return '';
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function setBirthday(val) {
+  if (!val) return;
+  const p = val.split('-');
+  if (p.length < 3) return;
+  document.getElementById('bd_year').value = parseInt(p[0]);
+  document.getElementById('bd_month').value = parseInt(p[1]);
+  document.getElementById('bd_day').value = parseInt(p[2]);
+}
+
+// ===== 性別→妊娠欄 =====
+function onGenderChange() {
+  const g = getRadio('gender');
+  const el = document.getElementById('f_pregnancy');
+  if (g === 'male') {
+    el.style.display = 'none';
+    document.querySelectorAll('input[name="pregnancy"]').forEach(r => r.checked = false);
+  } else {
+    el.style.display = 'block';
+  }
+}
+
+// ===== ブリーチ選択肢の切り替え =====
+function onBleachChange(val) {
+  const detailEl = document.getElementById('hist_bleach_detail');
+  const lastEl = document.getElementById('hist_bleach_last');
+  if (val === 'no') {
+    detailEl.classList.remove('show');
+    return;
+  }
+  detailEl.classList.add('show');
+  lastEl.innerHTML = '<option value="">選択してください</option>';
+  if (val === 'yes_recent') {
+    [['1month','1ヶ月以内'],['3month','3ヶ月以内'],['6month','半年以内'],['1year','約1年以内']].forEach(([v,t]) => {
+      lastEl.innerHTML += `<option value="${v}">${t}</option>`;
+    });
+  } else {
+    [['over1year','1年以上前'],['over3year','3年以上前'],['unknown','覚えていない']].forEach(([v,t]) => {
+      lastEl.innerHTML += `<option value="${v}">${t}</option>`;
+    });
+  }
+}
+
+// ===== バリデーション =====
+function validateStep(step) {
+  let valid = true;
+  const err = (id, ng) => { setError(id, ng); if (ng) valid = false; };
+
+  if (step === 0) {
+    err('f_name',     !getVal('name'));
+    err('f_name_kana',!getVal('name_kana'));
+    err('f_birthday', !getBirthday());
+    err('f_phone',    !getVal('phone'));
+    err('f_postal',   !getVal('postal'));
+    err('f_address1', !getVal('address1'));
+    err('f_gender',   !getRadio('gender'));
+  }
+  if (step === 1) {
+    const g = getRadio('gender');
+    const pregnancyErr = g !== 'male' && !getRadio('pregnancy');
+    setError('f_pregnancy', pregnancyErr);
+    if (pregnancyErr) valid = false;
+    err('f_skin_condition',!getRadio('skin_condition'));
+    err('f_allergy',       !getRadio('allergy'));
+    err('f_color_reaction',!getRadio('color_reaction'));
+    err('f_medication',    !getRadio('medication'));
+  }
+  if (step === 2) {
+    err('f_hist_color',   !getRadio('hist_color'));
+    err('f_gray_ratio',   !getRadio('gray_ratio'));
+    err('f_hist_bleach',  !getRadio('hist_bleach'));
+    err('f_hist_perm',    !getRadio('hist_perm'));
+    err('f_hist_straight',!getRadio('hist_straight'));
+  }
+  if (step === 3) {
+    const svcOk = document.querySelectorAll('input[name="services"]:checked').length > 0;
+    setError('f_services', !svcOk);
+    if (!svcOk) valid = false;
+    // 施術別チェック
+    document.querySelectorAll('#riskBlocks input[type="checkbox"]').forEach(cb => { if (!cb.checked) valid = false; });
+    // 共通チェック
+    if (!document.getElementById('commonConsentCb').checked) valid = false;
+  }
+
+  const vs = document.getElementById('vs' + step);
+  if (vs) vs.classList.toggle('show', !valid);
+  if (!valid) window.scrollTo({ top: 0, behavior: 'smooth' });
+  return valid;
+}
+
+function setError(id, isError) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('error', isError);
+}
+function clearErrors(step) {
+  const sec = document.getElementById('step-' + step);
+  if (sec) sec.querySelectorAll('.field').forEach(f => f.classList.remove('error'));
+  const vs = document.getElementById('vs' + step);
+  if (vs) vs.classList.remove('show');
+}
+
+// ===== モード =====
+function startNew() {
+  isRepeat = false; existingData = null;
+  document.getElementById('modeScreen').style.display = 'none';
+  document.getElementById('progressBar').style.display = 'flex';
+  document.getElementById('navBar').style.display = 'flex';
+  currentStep = 0; showStep(0);
+}
+function showSearch() {
+  document.getElementById('modeScreen').style.display = 'none';
+  document.getElementById('searchScreen').style.display = 'block';
+}
+function backToMode() {
+  document.getElementById('searchScreen').style.display = 'none';
+  document.getElementById('modeScreen').style.display = 'block';
+}
+
+// ===== 郵便番号 =====
+async function lookupPostal() {
+  const raw = getVal('postal').replace(/[^0-9]/g, '');
+  if (raw.length < 7) { alert('郵便番号を7桁で入力してください（ハイフンなし）'); return; }
+  const btn = document.getElementById('postalBtn');
+  btn.disabled = true; btn.textContent = '検索中…';
+  try {
+    const res = await fetch('https://zipcloud.ibsnet.co.jp/api/search?zipcode=' + raw);
+    const json = await res.json();
+    if (json.results && json.results[0]) {
+      const r = json.results[0];
+      document.getElementById('address1').value = r.address1 + r.address2 + r.address3;
+      setError('f_address1', false); setError('f_postal', false);
+    } else {
+      alert('住所が見つかりませんでした。郵便番号をご確認ください。');
+    }
+  } catch(e) {
+    alert('通信エラーが発生しました。手動で入力してください。');
+  } finally {
+    btn.disabled = false; btn.textContent = '住所を入力';
+  }
+}
+
+// ===== 検索 =====
+async function searchCustomer() {
+  const phone = document.getElementById('searchPhone').value.trim();
+  if (!phone) { alert('電話番号を入力してください。'); return; }
+  showLoading('データを確認しています…');
+  try {
+    const res = await fetch(GAS_URL + '?phone=' + encodeURIComponent(phone));
+    const json = await res.json();
+    hideLoading();
+    if (json.status === 'found') {
+      existingData = json.data; isRepeat = true;
+      document.getElementById('searchScreen').style.display = 'none';
+      document.getElementById('progressBar').style.display = 'flex';
+      document.getElementById('navBar').style.display = 'flex';
+      document.getElementById('step3Label').textContent = 'Step 1 / 2';
+      document.getElementById('step4Label').textContent = 'Step 2 / 2';
+      document.querySelectorAll('.progress-step').forEach((s,i) => s.style.display = i < 2 ? 'block' : 'none');
+      fillExistingData();
+      currentStep = 3; showStep(3);
+    } else {
+      alert('登録が見つかりませんでした。\n電話番号をご確認いただくか、「はじめてのご来店」からご入力ください。');
+    }
+  } catch(e) { hideLoading(); alert('通信エラーが発生しました。'); }
+}
+
+function fillExistingData() {
+  if (!existingData) return;
+  const d = existingData;
+  setVal('name',d.name); setVal('name_kana',d.name_kana); setBirthday(d.birthday);
+  setVal('phone',d.phone); setVal('postal',d.postal); setVal('address1',d.address1); setVal('address2',d.address2);
+  setRadio('gender',d.gender); onGenderChange();
+  setRadio('pregnancy',d.pregnancy);
+  setRadio('skin_condition',d.skin_condition);
+  if (d.skin_condition==='yes'){toggleConditional('skin_detail',true);setVal('skin_detail_text',d.skin_detail_text);}
+  setRadio('allergy',d.allergy);
+  if (d.allergy==='yes'){toggleConditional('allergy_detail',true);setVal('allergy_detail_text',d.allergy_detail_text);}
+  setRadio('color_reaction',d.color_reaction);
+  if (d.color_reaction==='yes'){toggleConditional('color_reaction_detail',true);setVal('color_reaction_detail_text',d.color_reaction_detail_text);}
+  setRadio('medication',d.medication);
+  if (d.medication==='yes'){toggleConditional('medication_detail',true);setVal('medication_detail_text',d.medication_detail_text);}
+  setRadio('scalp_type',d.scalp_type); setVal('health_other',d.health_other);
+  setRadio('hist_color',d.hist_color);
+  if (d.hist_color&&d.hist_color!=='no'){toggleConditional('hist_color_detail',true);setSelectVal('hist_color_date',d.hist_color_date);setSelectVal('hist_color_freq',d.hist_color_freq);}
+  setRadio('gray_ratio',d.gray_ratio);
+  setRadio('hist_bleach',d.hist_bleach);
+  if (d.hist_bleach&&d.hist_bleach!=='no'){onBleachChange(d.hist_bleach);setSelectVal('hist_bleach_count',d.hist_bleach_count);setSelectVal('hist_bleach_last',d.hist_bleach_last);}
+  setRadio('hist_perm',d.hist_perm);
+  if (d.hist_perm==='yes'){toggleConditional('hist_perm_detail',true);setSelectVal('hist_perm_date',d.hist_perm_date);}
+  setRadio('hist_straight',d.hist_straight);
+  if (d.hist_straight==='yes'){toggleConditional('hist_straight_detail',true);setSelectVal('hist_straight_date',d.hist_straight_date);}
+  setVal('history_other',d.history_other);
+  ['banner0','banner1','banner2'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('show');});
+}
+
+// ===== ナビ =====
+const STEPS_NEW=[0,1,2,3,4], STEPS_REPEAT=[3,4];
+function getStepList(){return isRepeat?STEPS_REPEAT:STEPS_NEW;}
+
+function showStep(n) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  const el = document.getElementById('step-'+n);
+  if (el) el.classList.add('active');
+  window.scrollTo({top:0,behavior:'smooth'});
+  updateNav(); updateProgress();
+  if (n===4) {
+    setTimeout(initCanvas, 50);
+    renderDateLog(existingData);
+  }
+}
+function updateNav() {
+  const list=getStepList(), idx=list.indexOf(currentStep);
+  const back=document.getElementById('btnBack'), next=document.getElementById('btnNext');
+  back.style.display = idx>0?'block':'none';
+  if (idx===list.length-1) { next.textContent='送信する'; next.className='btn btn-submit'; next.onclick=submitForm; }
+  else { next.textContent='つぎへ'; next.className='btn btn-next'; next.onclick=nextStep; }
+}
+function updateProgress() {
+  const list=getStepList(), idx=list.indexOf(currentStep);
+  document.querySelectorAll('.progress-step').forEach((s,i)=>{
+    s.classList.remove('active','done');
+    if(i===idx)s.classList.add('active');
+    else if(i<idx)s.classList.add('done');
+  });
+}
+function nextStep() {
+  if (!validateStep(currentStep)) return;
+  clearErrors(currentStep);
+  const list=getStepList(), idx=list.indexOf(currentStep);
+  if(idx<list.length-1){currentStep=list[idx+1];showStep(currentStep);}
+}
+function prevStep() {
+  clearErrors(currentStep);
+  const list=getStepList(), idx=list.indexOf(currentStep);
+  if(idx>0){currentStep=list[idx-1];showStep(currentStep);}
+}
+
+// ===== 条件表示 =====
+function toggleConditional(id,show){const el=document.getElementById(id);if(el)el.classList.toggle('show',show);}
+
+// ===== サービス・リスクブロック =====
+const riskData = {
+  color:{name:'カラー',items:['ジアミンアレルギーがある方は施術できない場合があります。','毛髪・頭皮のコンディションによっては希望の色に仕上がらない場合があります。','施術後に頭皮のかゆみや赤みが出た場合は、すみやかにご連絡ください。','妊娠中・授乳中の方は事前にご相談ください。']},
+  bleach:{name:'ブリーチ',items:['ブリーチは毛髪へのダメージが最も大きい施術です。','ハイダメージ毛・施術履歴によっては断毛（切れ毛）のリスクがあります。','希望の明るさに達しない場合、または数回に分けての施術をご提案することがあります。','頭皮に傷・炎症がある場合は施術できません。','施術後の毛髪強度が大幅に低下することを了承いただきます。']},
+  perm:{name:'パーマ',items:['ダメージが蓄積した毛髪ではウェーブがかかりにくい・持続しにくい場合があります。','かかり具合・持続期間には個人差があります。','施術後48時間は洗髪・結ぶことをお控えください。','ブリーチ毛・ハイダメージ毛への施術はリスクが高い旨をご了承ください。']},
+  straight:{name:'縮毛矯正',items:['ブリーチ毛・ハイダメージ毛への施術はリスクが高く、お断りする場合があります。','施術後48時間は洗髪・ヘアゴム等で跡をつけることをお控えください。','かかり具合・持続期間には個人差があります。','毛髪の状態によっては部分的に施術できない箇所が生じる場合があります。']}
+};
+
+function toggleService(label) {
+  const cb=label.querySelector('input[type="checkbox"]');
+  setTimeout(()=>{label.classList.toggle('checked',cb.checked);updateRiskBlocks();},0);
+}
+
+function updateRiskBlocks() {
+  const selected=Array.from(document.querySelectorAll('input[name="services"]:checked')).map(c=>c.value);
+  const container=document.getElementById('riskBlocks');
+  const active=['color','bleach','perm','straight'].filter(k=>selected.includes(k));
+  if(active.length===0){container.innerHTML='';return;}
+
+  let html='<p class="risk-section-label" style="margin-top:0">施術別の確認事項</p>';
+  active.forEach(k=>{
+    const d=riskData[k];
+    d.items.forEach((item,i)=>{
+      const bid=`rb_${k}_${i}`;
+      html+=`<div class="consent-block" id="${bid}">
+        <input type="checkbox" onchange="toggleConsentBlock('${bid}',this)">
+        <div class="consent-block-text">【${d.name}】${item}</div>
+      </div>`;
+    });
+  });
+  html+='<div class="divider"></div>';
+  container.innerHTML=html;
+}
+
+function toggleConsentBlock(id,cb){
+  const el=document.getElementById(id);
+  if(el)el.classList.toggle('checked',cb.checked);
+}
+
+// ===== 共通確認まとめチェック =====
+function toggleCommonConsent(){
+  setTimeout(()=>{
+    const cb=document.getElementById('commonConsentCb');
+    const list=document.getElementById('commonConsentList');
+    if(list)list.classList.toggle('all-checked',cb.checked);
+  },0);
+}
+
+// ===== 全同意 =====
+function toggleAgreeAll(){
+  setTimeout(()=>{
+    const cb=document.getElementById('agreeAll');
+    const label=document.getElementById('agreeAllLabel');
+    label.classList.toggle('checked',cb.checked);
+    if(cb.checked)label.classList.remove('error');
+  },0);
+}
+
+// ===== 署名 =====
+function initCanvas(){
+  const wrap=document.getElementById('signWrap');
+  const canvas=document.getElementById('signCanvas');
+  if(!wrap||!canvas)return;
+  const dpr=window.devicePixelRatio||1;
+  const w=wrap.clientWidth, h=wrap.clientHeight;
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.strokeStyle='#1a1a18'; ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.lineJoin='round';
+  signHasContent=false;
+  document.getElementById('signPlaceholder').style.display='';
+
+  function getPos(e){
+    const rect=canvas.getBoundingClientRect();
+    const src=e.touches?e.touches[0]:e;
+    return{x:src.clientX-rect.left,y:src.clientY-rect.top};
+  }
+  canvas.addEventListener('pointerdown', e=>{
+    e.preventDefault(); e.stopPropagation();
+    signDrawing=true; canvas.setPointerCapture(e.pointerId);
+    const p=getPos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y);
+    document.getElementById('signPlaceholder').style.display='none';
+    document.getElementById('signWrap').classList.remove('error');
+  }, {passive:false});
+  canvas.addEventListener('pointermove', e=>{
+    if(!signDrawing)return;
+    e.preventDefault(); e.stopPropagation();
+    const p=getPos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); signHasContent=true;
+  }, {passive:false});
+  canvas.addEventListener('pointerup', e=>{ signDrawing=false; }, {passive:true});
+  canvas.addEventListener('pointercancel', e=>{ signDrawing=false; }, {passive:true});
+  // タッチスクロール完全防止
+  canvas.addEventListener('touchstart', e=>e.preventDefault(), {passive:false});
+  canvas.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+}
+
+function clearSign(){
+  if(!ctx)return;
+  const canvas=document.getElementById('signCanvas');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  signHasContent=false;
+  document.getElementById('signPlaceholder').style.display='';
+}
+
+// ===== 送信 =====
+async function submitForm(){
+  const agreeOk=document.getElementById('agreeAll').checked;
+  if(!agreeOk)document.getElementById('agreeAllLabel').classList.add('error');
+  if(!signHasContent)document.getElementById('signWrap').classList.add('error');
+  if(!agreeOk||!signHasContent){
+    document.getElementById('vs4').classList.add('show');
+    window.scrollTo({top:0,behavior:'smooth'}); return;
+  }
+  document.getElementById('vs4').classList.remove('show');
+
+  const now = new Date();
+  const todayStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日';
+  const services=Array.from(document.querySelectorAll('input[name="services"]:checked')).map(c=>c.value).join('・');
+
+  // 日付ログの組み立て
+  let firstDate = todayStr;
+  let additionalDates = '';
+  if (isRepeat && existingData) {
+    firstDate = existingData.first_input_date || todayStr;
+    const prev = existingData.additional_dates || '';
+    const newEntry = `追加入力（${services}）　${todayStr}`;
+    additionalDates = prev ? prev + '|' + newEntry : newEntry;
+  }
+
+  const canvas=document.getElementById('signCanvas');
+  const payload={
+    name:getVal('name'),name_kana:getVal('name_kana'),birthday:getBirthday(),
+    phone:getVal('phone'),postal:getVal('postal'),address1:getVal('address1'),address2:getVal('address2'),
+    gender:getRadio('gender'),pregnancy:getRadio('pregnancy'),
+    skin_condition:getRadio('skin_condition'),skin_detail_text:getVal('skin_detail_text'),
+    allergy:getRadio('allergy'),allergy_detail_text:getVal('allergy_detail_text'),
+    color_reaction:getRadio('color_reaction'),color_reaction_detail_text:getVal('color_reaction_detail_text'),
+    medication:getRadio('medication'),medication_detail_text:getVal('medication_detail_text'),
+    scalp_type:getRadio('scalp_type'),health_other:getVal('health_other'),
+    hist_color:getRadio('hist_color'),hist_color_date:getSelectVal('hist_color_date'),hist_color_freq:getSelectVal('hist_color_freq'),
+    gray_ratio:getRadio('gray_ratio'),
+    hist_bleach:getRadio('hist_bleach'),hist_bleach_count:getSelectVal('hist_bleach_count'),hist_bleach_last:getSelectVal('hist_bleach_last'),
+    hist_perm:getRadio('hist_perm'),hist_perm_date:getSelectVal('hist_perm_date'),
+    hist_straight:getRadio('hist_straight'),hist_straight_date:getSelectVal('hist_straight_date'),
+    history_other:getVal('history_other'),
+    today_services:services,
+    photo_consent:document.getElementById('photo_consent').checked?'yes':'no',
+    agreed_all:'yes',
+    first_input_date: firstDate,
+    additional_dates: additionalDates,
+    signature:canvas.toDataURL('image/png'),
+    updated_at:now.toLocaleString('ja-JP')
+  };
+
+  showLoading('データを保存しています…');
+  try {
+    await fetch(GAS_URL,{method:'POST',body:JSON.stringify({action:'save',payload})});
+    hideLoading();
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    document.getElementById('complete').classList.add('active');
+    document.getElementById('navBar').style.display='none';
+    document.getElementById('progressBar').style.display='none';
+    window.scrollTo({top:0,behavior:'smooth'});
+  } catch(e){hideLoading();alert('保存中にエラーが発生しました。Wi-Fiの接続をご確認ください。');}
+}
+
+// ===== ユーティリティ =====
+function getVal(id){const el=document.getElementById(id);return el?el.value.trim():'';}
+function setVal(id,val){const el=document.getElementById(id);if(el&&val!=null)el.value=val;}
+function getRadio(name){const el=document.querySelector(`input[name="${name}"]:checked`);return el?el.value:'';}
+function setRadio(name,val){if(!val)return;const el=document.querySelector(`input[name="${name}"][value="${val}"]`);if(el)el.checked=true;}
+function getSelectVal(id){const el=document.getElementById(id);return el?el.value:'';}
+function setSelectVal(id,val){const el=document.getElementById(id);if(el&&val)el.value=val;}
+function showLoading(t){document.getElementById('loadingText').textContent=t;document.getElementById('loadingOverlay').classList.add('show');}
+function hideLoading(){document.getElementById('loadingOverlay').classList.remove('show');}
+
+// ===== 初期化 =====
+window.addEventListener('load',()=>{
+  initDateSelects();
+  document.getElementById('f_pregnancy').style.display='none';
+  renderDateLog(null);
+});
+
+function renderDateLog(existing) {
+  const el = document.getElementById('dateLog');
+  if (!el) return;
+  const now = new Date();
+  const todayStr = now.getFullYear()+'年'+(now.getMonth()+1)+'月'+now.getDate()+'日';
+
+  if (!existing || !existing.first_input_date) {
+    // 新規：初回入力日（今日）
+    el.innerHTML = `<span class="date-log-label">初回入力日</span>${todayStr}`;
+  } else {
+    // リピーター：初回＋追加履歴
+    let html = `<span class="date-log-label">初回入力日</span>${existing.first_input_date}`;
+    if (existing.additional_dates) {
+      existing.additional_dates.split('|').forEach(entry => {
+        if (entry.trim()) html += `<br>${entry.trim()}`;
+      });
+    }
+    // 今回の追加分
+    const services = Array.from(document.querySelectorAll('input[name="services"]:checked')).map(c=>c.value).join('・');
+    html += `<br><span class="date-log-label" style="margin-top:8px;display:block">追加入力（${services||'メニュー未選択'}）</span>${todayStr}`;
+    el.innerHTML = html;
+  }
+}
+</script>
+</body>
+</html>
