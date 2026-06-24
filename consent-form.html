@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>施術メニューの確認および同意書 | tips</title>
 
+<!-- PWA対応 -->
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="tips同意書">
+<meta name="theme-color" content="#1a1a18">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+
 <style>
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -191,7 +199,7 @@
 <!-- モード選択 -->
 <div class="mode-screen" id="modeScreen">
   <div class="mode-title">ようこそ</div>
-  <p class="mode-lead">ご来店ありがとうございます。<br><br>tipsでは、初回ご来店時にお客さまの健康状態や施術履歴などを確認させていただいております。また、それぞれの施術メニューについての注意事項をご確認いただくことで安心・安全な施術の提供に役立てております。<br>いただいた情報は施術内容の判断や薬剤選定に活用し、第三者への提供は一切いたしません。ご入力には3〜5分ほどかかります。<br>ご協力をよろしくお願いいたします。</p>
+  <p class="mode-lead">ご来店ありがとうございます。<br>tipsでは、初回ご来店時にお客さまの健康状態や施術履歴などを確認させていただいております。また、それぞれの施術メニューについての注意事項をご確認いただくことで安心・安全な施術の提供に役立てております。<br>いただいた情報は施術内容の判断や薬剤選定に活用し、第三者への提供は一切いたしません。ご入力には3〜5分ほどかかります。ご協力をよろしくお願いいたします。</p>
   <div class="mode-card" onclick="startNew()">
     <h3>🌱 はじめてのご来店</h3>
     <p>基本情報・健康状態・施術履歴などをご入力いただき、注意事項への同意をお願いしております。</p>
@@ -622,13 +630,13 @@ function initDateSelects() {
   for (let y = thisYear; y >= 1930; y--) {
     const o = document.createElement('option');
     o.value = y; o.textContent = y + '年';
-    if (y === 1990) o.selected = true;
+    if (y === 1985) o.selected = true;
     yEl.appendChild(o);
   }
   for (let m = 1; m <= 12; m++) {
     const o = document.createElement('option');
     o.value = m; o.textContent = m + '月';
-    if (m === 1) o.selected = true;
+    if (m === 6) o.selected = true;
     mEl.appendChild(o);
   }
   for (let d = 1; d <= 31; d++) {
