@@ -213,11 +213,20 @@
 <!-- 検索画面 -->
 <div class="search-screen" id="searchScreen">
   <div class="section-title">お客さま情報の確認</div>
-  <div class="info-box">登録時の電話番号を入力してください。以前のご入力内容を呼び出します。</div>
+  <div class="info-box">登録時の電話番号と生年月日を入力してください。本人確認のうえ、以前のご入力内容を呼び出します。</div>
   <div class="field" id="f_searchPhone">
     <label>電話番号<span class="req">*</span></label>
     <input type="tel" id="searchPhone" placeholder="090-0000-0000" inputmode="numeric">
     <span class="error-msg">電話番号を入力してください</span>
+  </div>
+  <div class="field" id="f_searchBirthday">
+    <label>生年月日<span class="req">*</span></label>
+    <div class="date-selects">
+      <select id="search_bd_year"><option value="">年</option></select>
+      <select id="search_bd_month"><option value="">月</option></select>
+      <select id="search_bd_day"><option value="">日</option></select>
+    </div>
+    <span class="error-msg">生年月日を選択してください</span>
   </div>
   <button class="btn btn-next" style="width:100%;margin-top:4px" onclick="searchCustomer()">検索する</button>
   <button class="btn btn-back" style="width:100%;margin-top:12px;border:1px solid var(--rule)" onclick="backToMode()">もどる</button>
@@ -626,23 +635,35 @@ function initDateSelects() {
   const yEl = document.getElementById('bd_year');
   const mEl = document.getElementById('bd_month');
   const dEl = document.getElementById('bd_day');
+  const sYEl = document.getElementById('search_bd_year');
+  const sMEl = document.getElementById('search_bd_month');
+  const sDEl = document.getElementById('search_bd_day');
+
+  // 既存のoptionをクリア（最初の1つ＝プレースホルダー以外）
+  [yEl, sYEl, mEl, sMEl, dEl, sDEl].forEach(el => {
+    if (el) while (el.options.length > 1) el.remove(1);
+  });
+
   const thisYear = new Date().getFullYear();
   for (let y = thisYear; y >= 1930; y--) {
     const o = document.createElement('option');
     o.value = y; o.textContent = y + '年';
     if (y === 1985) o.selected = true;
     yEl.appendChild(o);
+    if (sYEl) sYEl.appendChild(o.cloneNode(true));
   }
-  for (let m = 1; m <= 12; m++) {
+  for (let mo = 1; mo <= 12; mo++) {
     const o = document.createElement('option');
-    o.value = m; o.textContent = m + '月';
-    if (m === 6) o.selected = true;
+    o.value = mo; o.textContent = mo + '月';
+    if (mo === 6) o.selected = true;
     mEl.appendChild(o);
+    if (sMEl) sMEl.appendChild(o.cloneNode(true));
   }
   for (let d = 1; d <= 31; d++) {
     const o = document.createElement('option');
     o.value = d; o.textContent = d + '日';
     dEl.appendChild(o);
+    if (sDEl) sDEl.appendChild(o.cloneNode(true));
   }
 }
 function getBirthday() {
@@ -793,15 +814,34 @@ async function lookupPostal() {
 }
 
 // ===== 検索 =====
+function getSearchBirthday() {
+  const y = document.getElementById('search_bd_year').value;
+  const m = document.getElementById('search_bd_month').value;
+  const d = document.getElementById('search_bd_day').value;
+  if (!y || !m || !d) return '';
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
 async function searchCustomer() {
   const phone = document.getElementById('searchPhone').value.trim();
-  if (!phone) { alert('電話番号を入力してください。'); return; }
+  const birthday = getSearchBirthday();
+  let valid = true;
+  if (!phone) { setError('f_searchPhone', true); valid = false; } else setError('f_searchPhone', false);
+  if (!birthday) { setError('f_searchBirthday', true); valid = false; } else setError('f_searchBirthday', false);
+  if (!valid) return;
+
   showLoading('データを確認しています…');
   try {
     const res = await fetch(GAS_URL + '?phone=' + encodeURIComponent(phone));
     const json = await res.json();
     hideLoading();
     if (json.status === 'found') {
+      // 生年月日の一致確認（本人確認）
+      const storedBirthday = String(json.data.birthday || '').replace(/^'/, '').trim();
+      if (storedBirthday !== birthday) {
+        alert('電話番号と生年月日の組み合わせが確認できませんでした。\nご入力内容をご確認いただくか、スタッフにお声がけください。');
+        return;
+      }
       existingData = json.data; isRepeat = true;
       document.getElementById('searchScreen').style.display = 'none';
       document.getElementById('progressBar').style.display = 'flex';
